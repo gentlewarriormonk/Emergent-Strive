@@ -7,7 +7,7 @@ import os
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field, EmailStr
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 import uuid
 from datetime import datetime, date, timedelta
 import hashlib
@@ -41,7 +41,7 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str
     role: str = "student"  # student or teacher
-    class_name: Optional[str] = None
+    class_name: str  # Required now
 
 class UserLogin(BaseModel):
     email: EmailStr
@@ -52,7 +52,7 @@ class User(BaseModel):
     name: str
     email: str
     role: str
-    class_id: Optional[str] = None
+    class_id: str
     created_at: datetime
 
 class HabitCreate(BaseModel):
@@ -85,14 +85,28 @@ class HabitStats(BaseModel):
     best_streak: int
     percent_complete: float
 
-class FriendRequest(BaseModel):
-    friend_email: str
-
 class Class(BaseModel):
     id: str
     name: str
     teacher_id: str
     created_at: datetime
+
+class StudentAnalytics(BaseModel):
+    student_name: str
+    student_email: str
+    total_habits: int
+    active_habits: int
+    best_current_streak: int
+    average_completion_rate: float
+    last_activity: Optional[datetime]
+
+class ClassMemberData(BaseModel):
+    name: str
+    role: str
+    current_best_streak: int
+    total_habits: int
+    completion_rate: float
+    recent_activity: str
 
 # Helper functions
 def hash_password(password: str) -> str:
@@ -167,8 +181,8 @@ async def register(user_data: UserCreate):
     
     # Handle class creation/assignment
     class_id = None
-    if user_data.role == "teacher" and user_data.class_name:
-        # Create new class
+    if user_data.role == "teacher":
+        # Create new class for teacher
         class_doc = {
             "id": str(uuid.uuid4()),
             "name": user_data.class_name,
@@ -177,11 +191,12 @@ async def register(user_data: UserCreate):
         }
         await db.classes.insert_one(class_doc)
         class_id = class_doc["id"]
-    elif user_data.role == "student" and user_data.class_name:
-        # Find existing class
+    else:
+        # Find existing class for student
         class_doc = await db.classes.find_one({"name": user_data.class_name})
-        if class_doc:
-            class_id = class_doc["id"]
+        if not class_doc:
+            raise HTTPException(status_code=404, detail=f"Class '{user_data.class_name}' not found. Ask your teacher to create the class first.")
+        class_id = class_doc["id"]
     
     # Create user
     user_id = str(uuid.uuid4())
@@ -322,102 +337,140 @@ async def log_habit(habit_id: str, log_data: HabitLogCreate, current_user: User 
     
     return HabitLog(**log_doc)
 
-@api_router.post("/friends/request")
-async def send_friend_request(request_data: FriendRequest, current_user: User = Depends(get_current_user)):
-    # Find friend by email
-    friend = await db.users.find_one({"email": request_data.friend_email})
-    if not friend:
-        raise HTTPException(status_code=404, detail="User not found")
+@api_router.get("/classes/{class_id}/analytics")
+async def get_class_analytics(class_id: str, current_user: User = Depends(get_current_user)):
+    # Verify user is teacher and owns this class
+    if current_user.role != "teacher":
+        raise HTTPException(status_code=403, detail="Only teachers can access class analytics")
     
-    if friend["id"] == current_user.id:
-        raise HTTPException(status_code=400, detail="Cannot add yourself as friend")
+    class_doc = await db.classes.find_one({"id": class_id, "teacher_id": current_user.id})
+    if not class_doc:
+        raise HTTPException(status_code=404, detail="Class not found or access denied")
     
-    # Check if friendship already exists
-    existing = await db.friendships.find_one({
-        "$or": [
-            {"requester_id": current_user.id, "accepter_id": friend["id"]},
-            {"requester_id": friend["id"], "accepter_id": current_user.id}
-        ]
-    })
+    # Get all students in this class
+    students = await db.users.find({"class_id": class_id, "role": "student"}).to_list(1000)
     
-    if existing:
-        raise HTTPException(status_code=400, detail="Friendship already exists")
-    
-    # Create friend request
-    friendship_doc = {
-        "id": str(uuid.uuid4()),
-        "requester_id": current_user.id,
-        "accepter_id": friend["id"],
-        "status": "pending",
-        "created_at": datetime.utcnow()
-    }
-    
-    await db.friendships.insert_one(friendship_doc)
-    return {"message": "Friend request sent"}
-
-@api_router.get("/friends/requests")
-async def get_friend_requests(current_user: User = Depends(get_current_user)):
-    requests = await db.friendships.find({
-        "accepter_id": current_user.id,
-        "status": "pending"
-    }).to_list(1000)
-    
-    result = []
-    for req in requests:
-        requester = await db.users.find_one({"id": req["requester_id"]})
-        result.append({
-            "request_id": req["id"],
-            "requester": {"name": requester["name"], "email": requester["email"]}
-        })
-    
-    return result
-
-@api_router.post("/friends/accept/{request_id}")
-async def accept_friend_request(request_id: str, current_user: User = Depends(get_current_user)):
-    # Find and update request
-    result = await db.friendships.update_one(
-        {"id": request_id, "accepter_id": current_user.id, "status": "pending"},
-        {"$set": {"status": "accepted"}}
-    )
-    
-    if result.matched_count == 0:
-        raise HTTPException(status_code=404, detail="Friend request not found")
-    
-    return {"message": "Friend request accepted"}
-
-@api_router.get("/feed/friends-streaks")
-async def get_friends_feed(current_user: User = Depends(get_current_user)):
-    # Get accepted friendships
-    friendships = await db.friendships.find({
-        "$or": [
-            {"requester_id": current_user.id, "status": "accepted"},
-            {"accepter_id": current_user.id, "status": "accepted"}
-        ]
-    }).to_list(1000)
-    
-    friends_data = []
-    for friendship in friendships:
-        friend_id = friendship["accepter_id"] if friendship["requester_id"] == current_user.id else friendship["requester_id"]
-        friend = await db.users.find_one({"id": friend_id})
+    analytics = []
+    for student in students:
+        # Get student's habits
+        habits = await db.habits.find({"user_id": student["id"]}).to_list(1000)
         
-        if friend:
-            # Get friend's best current streak
-            habits = await db.habits.find({"user_id": friend_id}).to_list(1000)
-            best_streak = 0
-            
-            for habit in habits:
-                stats = await db.habit_stats.find_one({"habit_id": habit["id"]})
-                if stats and stats["current_streak"] > best_streak:
-                    best_streak = stats["current_streak"]
-            
-            friends_data.append({
-                "name": friend["name"],
-                "current_streak": best_streak
-            })
+        # Calculate analytics
+        total_habits = len(habits)
+        active_habits = 0
+        best_current_streak = 0
+        total_completion_rate = 0
+        last_activity = None
+        
+        for habit in habits:
+            # Get stats
+            stats = await db.habit_stats.find_one({"habit_id": habit["id"]})
+            if stats:
+                if stats["current_streak"] > 0:
+                    active_habits += 1
+                best_current_streak = max(best_current_streak, stats["current_streak"])
+                total_completion_rate += stats["percent_complete"]
+        
+        # Get last activity
+        last_log = await db.habit_logs.find_one(
+            {"habit_id": {"$in": [h["id"] for h in habits]}},
+            sort=[("created_at", -1)]
+        )
+        if last_log:
+            last_activity = last_log["created_at"]
+        
+        average_completion_rate = total_completion_rate / total_habits if total_habits > 0 else 0
+        
+        analytics.append(StudentAnalytics(
+            student_name=student["name"],
+            student_email=student["email"],
+            total_habits=total_habits,
+            active_habits=active_habits,
+            best_current_streak=best_current_streak,
+            average_completion_rate=round(average_completion_rate, 1),
+            last_activity=last_activity
+        ))
     
-    # Sort by current streak descending
-    friends_data.sort(key=lambda x: x["current_streak"], reverse=True)
-    return friends_data
+    return {
+        "class_name": class_doc["name"],
+        "total_students": len(students),
+        "analytics": analytics
+    }
+
+@api_router.get("/my-class/feed")
+async def get_class_feed(current_user: User = Depends(get_current_user)):
+    # Get all users in the same class
+    class_members = await db.users.find({"class_id": current_user.class_id}).to_list(1000)
+    
+    feed_data = []
+    for member in class_members:
+        # Get member's habits
+        habits = await db.habits.find({"user_id": member["id"]}).to_list(1000)
+        
+        # Calculate member's best current streak and completion rate
+        best_current_streak = 0
+        total_completion_rate = 0
+        active_habits = 0
+        
+        for habit in habits:
+            stats = await db.habit_stats.find_one({"habit_id": habit["id"]})
+            if stats:
+                best_current_streak = max(best_current_streak, stats["current_streak"])
+                total_completion_rate += stats["percent_complete"]
+                if stats["current_streak"] > 0:
+                    active_habits += 1
+        
+        average_completion_rate = total_completion_rate / len(habits) if habits else 0
+        
+        # Get recent activity
+        recent_activity = "No recent activity"
+        if habits:
+            recent_log = await db.habit_logs.find_one(
+                {"habit_id": {"$in": [h["id"] for h in habits]}},
+                sort=[("created_at", -1)]
+            )
+            if recent_log:
+                days_ago = (datetime.utcnow() - recent_log["created_at"]).days
+                if days_ago == 0:
+                    recent_activity = "Active today"
+                elif days_ago == 1:
+                    recent_activity = "Active yesterday"
+                else:
+                    recent_activity = f"Active {days_ago} days ago"
+        
+        feed_data.append(ClassMemberData(
+            name=member["name"],
+            role=member["role"],
+            current_best_streak=best_current_streak,
+            total_habits=len(habits),
+            completion_rate=round(average_completion_rate, 1),
+            recent_activity=recent_activity
+        ))
+    
+    # Sort by current best streak descending
+    feed_data.sort(key=lambda x: x.current_best_streak, reverse=True)
+    
+    return feed_data
+
+@api_router.get("/my-class/info")
+async def get_class_info(current_user: User = Depends(get_current_user)):
+    class_doc = await db.classes.find_one({"id": current_user.class_id})
+    if not class_doc:
+        raise HTTPException(status_code=404, detail="Class not found")
+    
+    # Get teacher info
+    teacher = await db.users.find_one({"id": class_doc["teacher_id"]})
+    teacher_name = teacher["name"] if teacher else "Unknown"
+    
+    # Get student count
+    student_count = await db.users.count_documents({"class_id": current_user.class_id, "role": "student"})
+    
+    return {
+        "class_name": class_doc["name"],
+        "teacher_name": teacher_name,
+        "student_count": student_count,
+        "your_role": current_user.role
+    }
 
 # Include the router in the main app
 app.include_router(api_router)

@@ -78,7 +78,7 @@ const AuthForm = () => {
       <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-gray-800 mb-2">One Thing</h1>
-          <p className="text-gray-600">Track your daily habits with friends</p>
+          <p className="text-gray-600">Track habits with your class</p>
         </div>
         
         <div className="flex mb-6 bg-gray-100 rounded-lg p-1">
@@ -143,11 +143,15 @@ const AuthForm = () => {
               
               <input
                 type="text"
-                placeholder={formData.role === 'teacher' ? 'Create Class Name' : 'Join Class Name (optional)'}
+                placeholder={formData.role === 'teacher' ? 'Create Class Name' : 'Join Class Name'}
                 value={formData.class_name}
                 onChange={(e) => setFormData({...formData, class_name: e.target.value})}
                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                required
               />
+              {formData.role === 'student' && (
+                <p className="text-sm text-gray-500">Ask your teacher for the exact class name</p>
+              )}
             </>
           )}
 
@@ -167,14 +171,20 @@ const AuthForm = () => {
 const Dashboard = () => {
   const [habits, setHabits] = useState([]);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [friends, setFriends] = useState([]);
+  const [classData, setClassData] = useState([]);
+  const [classInfo, setClassInfo] = useState(null);
+  const [analytics, setAnalytics] = useState(null);
   const [activeTab, setActiveTab] = useState('habits');
   const { user, logout } = useAuth();
 
   useEffect(() => {
     fetchHabits();
-    fetchFriends();
-  }, []);
+    fetchClassData();
+    fetchClassInfo();
+    if (user?.role === 'teacher') {
+      fetchAnalytics();
+    }
+  }, [user]);
 
   const fetchHabits = async () => {
     try {
@@ -185,12 +195,32 @@ const Dashboard = () => {
     }
   };
 
-  const fetchFriends = async () => {
+  const fetchClassData = async () => {
     try {
-      const response = await axios.get(`${API}/feed/friends-streaks`);
-      setFriends(response.data);
+      const response = await axios.get(`${API}/my-class/feed`);
+      setClassData(response.data);
     } catch (error) {
-      console.error('Error fetching friends:', error);
+      console.error('Error fetching class data:', error);
+    }
+  };
+
+  const fetchClassInfo = async () => {
+    try {
+      const response = await axios.get(`${API}/my-class/info`);
+      setClassInfo(response.data);
+    } catch (error) {
+      console.error('Error fetching class info:', error);
+    }
+  };
+
+  const fetchAnalytics = async () => {
+    if (user?.class_id) {
+      try {
+        const response = await axios.get(`${API}/classes/${user.class_id}/analytics`);
+        setAnalytics(response.data);
+      } catch (error) {
+        console.error('Error fetching analytics:', error);
+      }
     }
   };
 
@@ -201,9 +231,23 @@ const Dashboard = () => {
         completed: !completed
       });
       fetchHabits();
+      fetchClassData(); // Refresh class data to show updated streaks
     } catch (error) {
       console.error('Error logging habit:', error);
     }
+  };
+
+  const getTabs = () => {
+    const tabs = [
+      { id: 'habits', label: 'My Habits' },
+      { id: 'class', label: 'My Class' }
+    ];
+    
+    if (user?.role === 'teacher') {
+      tabs.push({ id: 'analytics', label: 'Analytics' });
+    }
+    
+    return tabs;
   };
 
   return (
@@ -213,7 +257,10 @@ const Dashboard = () => {
         <div className="max-w-4xl mx-auto flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold">One Thing</h1>
-            <p className="text-purple-100">Welcome back, {user?.name}!</p>
+            <p className="text-purple-100">
+              Welcome back, {user?.name}! 
+              {classInfo && <span className="ml-2">📚 {classInfo.class_name}</span>}
+            </p>
           </div>
           <button
             onClick={logout}
@@ -227,22 +274,17 @@ const Dashboard = () => {
       <div className="max-w-4xl mx-auto p-6">
         {/* Tabs */}
         <div className="flex space-x-1 bg-gray-200 rounded-lg p-1 mb-6">
-          <button
-            onClick={() => setActiveTab('habits')}
-            className={`flex-1 py-2 px-4 rounded-md transition-all ${
-              activeTab === 'habits' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-600'
-            }`}
-          >
-            My Habits
-          </button>
-          <button
-            onClick={() => setActiveTab('friends')}
-            className={`flex-1 py-2 px-4 rounded-md transition-all ${
-              activeTab === 'friends' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-600'
-            }`}
-          >
-            Friends
-          </button>
+          {getTabs().map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex-1 py-2 px-4 rounded-md transition-all ${
+                activeTab === tab.id ? 'bg-white shadow-sm text-blue-600' : 'text-gray-600'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
 
         {activeTab === 'habits' && (
@@ -291,10 +333,12 @@ const Dashboard = () => {
           </div>
         )}
 
-        {activeTab === 'friends' && (
-          <div>
-            <FriendsTab friends={friends} onUpdate={fetchFriends} />
-          </div>
+        {activeTab === 'class' && (
+          <ClassTab classData={classData} classInfo={classInfo} />
+        )}
+
+        {activeTab === 'analytics' && user?.role === 'teacher' && (
+          <AnalyticsTab analytics={analytics} />
         )}
       </div>
     </div>
@@ -415,108 +459,59 @@ const AddHabitModal = ({ onClose, onAdd }) => {
   );
 };
 
-const FriendsTab = ({ friends, onUpdate }) => {
-  const [friendEmail, setFriendEmail] = useState('');
-  const [friendRequests, setFriendRequests] = useState([]);
-
-  useEffect(() => {
-    fetchFriendRequests();
-  }, []);
-
-  const fetchFriendRequests = async () => {
-    try {
-      const response = await axios.get(`${API}/friends/requests`);
-      setFriendRequests(response.data);
-    } catch (error) {
-      console.error('Error fetching friend requests:', error);
-    }
-  };
-
-  const sendFriendRequest = async (e) => {
-    e.preventDefault();
-    try {
-      await axios.post(`${API}/friends/request`, { friend_email: friendEmail });
-      setFriendEmail('');
-      alert('Friend request sent!');
-    } catch (error) {
-      alert(error.response?.data?.detail || 'Error sending friend request');
-    }
-  };
-
-  const acceptFriendRequest = async (requestId) => {
-    try {
-      await axios.post(`${API}/friends/accept/${requestId}`);
-      fetchFriendRequests();
-      onUpdate();
-    } catch (error) {
-      alert('Error accepting friend request');
-    }
-  };
-
+const ClassTab = ({ classData, classInfo }) => {
   return (
-    <div className="space-y-8">
-      {/* Add Friend */}
-      <div className="bg-white rounded-xl shadow-lg p-6">
-        <h3 className="text-xl font-bold mb-4">Add Friend</h3>
-        <form onSubmit={sendFriendRequest} className="flex space-x-3">
-          <input
-            type="email"
-            placeholder="Friend's email"
-            value={friendEmail}
-            onChange={(e) => setFriendEmail(e.target.value)}
-            className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            required
-          />
-          <button
-            type="submit"
-            className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700"
-          >
-            Send Request
-          </button>
-        </form>
-      </div>
-
-      {/* Friend Requests */}
-      {friendRequests.length > 0 && (
+    <div className="space-y-6">
+      {/* Class Info */}
+      {classInfo && (
         <div className="bg-white rounded-xl shadow-lg p-6">
-          <h3 className="text-xl font-bold mb-4">Friend Requests</h3>
-          <div className="space-y-3">
-            {friendRequests.map((request) => (
-              <div key={request.request_id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                <div>
-                  <p className="font-semibold">{request.requester.name}</p>
-                  <p className="text-sm text-gray-600">{request.requester.email}</p>
-                </div>
-                <button
-                  onClick={() => acceptFriendRequest(request.request_id)}
-                  className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
-                >
-                  Accept
-                </button>
-              </div>
-            ))}
+          <h3 className="text-xl font-bold mb-4">📚 Class Overview</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-600">{classInfo.class_name}</div>
+              <div className="text-sm text-gray-600">Class Name</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-green-600">{classInfo.teacher_name}</div>
+              <div className="text-sm text-gray-600">Teacher</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-purple-600">{classInfo.student_count}</div>
+              <div className="text-sm text-gray-600">Students</div>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Friends Leaderboard */}
+      {/* Class Leaderboard */}
       <div className="bg-white rounded-xl shadow-lg p-6">
-        <h3 className="text-xl font-bold mb-4">🏆 Friends Leaderboard</h3>
-        {friends.length > 0 ? (
+        <h3 className="text-xl font-bold mb-4">🏆 Class Leaderboard</h3>
+        {classData.length > 0 ? (
           <div className="space-y-3">
-            {friends.map((friend, index) => (
-              <div key={friend.name} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div className="flex items-center space-x-3">
+            {classData.map((member, index) => (
+              <div key={member.name} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                <div className="flex items-center space-x-4">
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold ${
-                    index === 0 ? 'bg-yellow-500' : index === 1 ? 'bg-gray-400' : index === 2 ? 'bg-orange-500' : 'bg-blue-500'
+                    index === 0 ? 'bg-yellow-500' : 
+                    index === 1 ? 'bg-gray-400' : 
+                    index === 2 ? 'bg-orange-500' : 'bg-blue-500'
                   }`}>
                     {index + 1}
                   </div>
-                  <span className="font-semibold">{friend.name}</span>
+                  <div>
+                    <div className="font-semibold flex items-center space-x-2">
+                      <span>{member.name}</span>
+                      {member.role === 'teacher' && <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded-full">Teacher</span>}
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      {member.total_habits} habits • {member.completion_rate}% success rate
+                    </div>
+                    <div className="text-xs text-gray-500">{member.recent_activity}</div>
+                  </div>
                 </div>
                 <div className="flex items-center space-x-1">
                   <span className="text-xl">🔥</span>
-                  <span className="font-bold text-orange-600">{friend.current_streak}</span>
+                  <span className="font-bold text-orange-600 text-lg">{member.current_best_streak}</span>
                 </div>
               </div>
             ))}
@@ -524,7 +519,95 @@ const FriendsTab = ({ friends, onUpdate }) => {
         ) : (
           <div className="text-center py-8">
             <div className="text-gray-400 text-4xl mb-4">👥</div>
-            <p className="text-gray-600">No friends yet. Start by adding some!</p>
+            <p className="text-gray-600">No class members found</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const AnalyticsTab = ({ analytics }) => {
+  if (!analytics) {
+    return (
+      <div className="bg-white rounded-xl shadow-lg p-6">
+        <h3 className="text-xl font-bold mb-4">📊 Class Analytics</h3>
+        <div className="text-center py-8">
+          <div className="text-gray-400 text-4xl mb-4">📈</div>
+          <p className="text-gray-600">Loading analytics...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Analytics Overview */}
+      <div className="bg-white rounded-xl shadow-lg p-6">
+        <h3 className="text-xl font-bold mb-4">📊 Class Analytics</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div className="text-center p-4 bg-blue-50 rounded-lg">
+            <div className="text-2xl font-bold text-blue-600">{analytics.class_name}</div>
+            <div className="text-sm text-gray-600">Class Name</div>
+          </div>
+          <div className="text-center p-4 bg-green-50 rounded-lg">
+            <div className="text-2xl font-bold text-green-600">{analytics.total_students}</div>
+            <div className="text-sm text-gray-600">Total Students</div>
+          </div>
+        </div>
+
+        {/* Student Analytics Table */}
+        <div className="overflow-x-auto">
+          <table className="w-full table-auto">
+            <thead>
+              <tr className="border-b">
+                <th className="text-left py-3 px-2">Student</th>
+                <th className="text-center py-3 px-2">Total Habits</th>
+                <th className="text-center py-3 px-2">Active Habits</th>
+                <th className="text-center py-3 px-2">Best Streak</th>
+                <th className="text-center py-3 px-2">Avg. Success</th>
+                <th className="text-center py-3 px-2">Last Activity</th>
+              </tr>
+            </thead>
+            <tbody>
+              {analytics.analytics.map((student, index) => (
+                <tr key={student.student_email} className={index % 2 === 0 ? 'bg-gray-50' : ''}>
+                  <td className="py-3 px-2">
+                    <div>
+                      <div className="font-semibold">{student.student_name}</div>
+                      <div className="text-sm text-gray-600">{student.student_email}</div>
+                    </div>
+                  </td>
+                  <td className="text-center py-3 px-2 font-semibold">{student.total_habits}</td>
+                  <td className="text-center py-3 px-2">
+                    <span className={`px-2 py-1 rounded-full text-sm ${
+                      student.active_habits > 0 ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {student.active_habits}
+                    </span>
+                  </td>
+                  <td className="text-center py-3 px-2">
+                    <div className="flex items-center justify-center space-x-1">
+                      <span className="text-lg">🔥</span>
+                      <span className="font-bold text-orange-600">{student.best_current_streak}</span>
+                    </div>
+                  </td>
+                  <td className="text-center py-3 px-2 font-semibold text-blue-600">
+                    {student.average_completion_rate}%
+                  </td>
+                  <td className="text-center py-3 px-2 text-sm text-gray-600">
+                    {student.last_activity ? new Date(student.last_activity).toLocaleDateString() : 'Never'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {analytics.analytics.length === 0 && (
+          <div className="text-center py-8">
+            <div className="text-gray-400 text-4xl mb-4">👥</div>
+            <p className="text-gray-600">No students in this class yet</p>
           </div>
         )}
       </div>
