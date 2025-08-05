@@ -370,6 +370,75 @@ async def check_and_award_streak_rewards(user_id: str, new_streak: int):
                 }
                 await db.reward_items.insert_one(reward)
 
+# Nightly cron job function
+async def nightly_cron_job():
+    """Nightly cron job to recompute streaks, crew streaks, and award rewards"""
+    try:
+        logger.info("Starting nightly cron job...")
+        
+        # 1. Recompute all habit stats
+        habits = await db.habits.find({}).to_list(10000)
+        for habit in habits:
+            current_streak, best_streak = await calculate_streak(habit["id"])
+            total_logs = await db.habit_logs.count_documents({"habit_id": habit["id"]})
+            completed_logs = await db.habit_logs.count_documents({"habit_id": habit["id"], "completed": True})
+            percent_complete = (completed_logs / total_logs * 100) if total_logs > 0 else 0
+            
+            await db.habit_stats.update_one(
+                {"habit_id": habit["id"]},
+                {
+                    "$set": {
+                        "current_streak": current_streak,
+                        "best_streak": best_streak,
+                        "percent_complete": percent_complete,
+                        "updated_at": datetime.utcnow()
+                    }
+                },
+                upsert=True
+            )
+            
+            # Check and award streak milestone rewards
+            await check_and_award_streak_rewards(habit["user_id"], current_streak)
+        
+        # 2. Update crew streaks
+        crews = await db.crews.find({}).to_list(1000)
+        for crew in crews:
+            crew_streak = await calculate_crew_streak(crew["id"])
+            await db.crews.update_one(
+                {"id": crew["id"]},
+                {"$set": {"crew_streak": crew_streak}}
+            )
+        
+        # 3. Update user stats best streaks
+        users = await db.users.find({}).to_list(10000)
+        for user in users:
+            user_habits = await db.habits.find({"user_id": user["id"]}).to_list(100)
+            user_best_streak = 0
+            
+            for habit in user_habits:
+                stats = await db.habit_stats.find_one({"habit_id": habit["id"]})
+                if stats:
+                    user_best_streak = max(user_best_streak, stats["current_streak"])
+            
+            await db.user_stats.update_one(
+                {"user_id": user["id"]},
+                {"$set": {"best_streak": user_best_streak}},
+                upsert=True
+            )
+        
+        logger.info("Nightly cron job completed successfully")
+        
+    except Exception as e:
+        logger.error(f"Error in nightly cron job: {str(e)}")
+
+# Initialize scheduler
+scheduler = AsyncIOScheduler()
+scheduler.add_job(
+    nightly_cron_job,
+    CronTrigger(hour=2, minute=0, timezone="UTC"),  # 02:00 UTC daily
+    id="nightly_stats_update"
+)
+
 # Routes
 @api_router.post("/auth/register")
 async def register(user_data: UserCreate):
