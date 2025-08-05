@@ -857,6 +857,112 @@ async def get_my_crew(current_user: User = Depends(get_current_user)):
         "members": member_data
     }
 
+@api_router.get("/crews/manage")
+async def get_crew_management(current_user: User = Depends(get_current_user)):
+    """Get crew management data for teachers"""
+    if current_user.role != "teacher":
+        raise HTTPException(status_code=403, detail="Only teachers can manage crews")
+    
+    # Get all crews in class
+    crews = await db.crews.find({"class_id": current_user.class_id}).to_list(100)
+    crew_data = []
+    
+    for crew in crews:
+        members = await db.crew_members.find({"crew_id": crew["id"]}).to_list(4)
+        member_details = []
+        
+        for member in members:
+            user = await db.users.find_one({"id": member["user_id"]})
+            if user:
+                member_details.append({
+                    "id": user["id"],
+                    "name": user["name"],
+                    "joined_at": member["joined_at"]
+                })
+        
+        crew_data.append({
+            "id": crew["id"],
+            "name": crew["name"],
+            "crew_streak": crew["crew_streak"],
+            "members": member_details,
+            "member_count": len(member_details)
+        })
+    
+    # Get unassigned students
+    all_students = await db.users.find({"class_id": current_user.class_id, "role": "student"}).to_list(1000)
+    assigned_student_ids = set()
+    
+    for crew in crew_data:
+        for member in crew["members"]:
+            assigned_student_ids.add(member["id"])
+    
+    unassigned_students = []
+    for student in all_students:
+        if student["id"] not in assigned_student_ids:
+            unassigned_students.append({
+                "id": student["id"],
+                "name": student["name"]
+            })
+    
+    return {
+        "crews": crew_data,
+        "unassigned_students": unassigned_students
+    }
+
+@api_router.post("/crews/create")
+async def create_crew(crew_data: CrewCreate, current_user: User = Depends(get_current_user)):
+    """Create a new crew"""
+    if current_user.role != "teacher":
+        raise HTTPException(status_code=403, detail="Only teachers can create crews")
+    
+    crew_doc = {
+        "id": str(uuid.uuid4()),
+        "class_id": current_user.class_id,
+        "name": crew_data.name,
+        "crew_streak": 0,
+        "created_at": datetime.utcnow()
+    }
+    
+    await db.crews.insert_one(crew_doc)
+    return {"message": "Crew created successfully", "crew_id": crew_doc["id"]}
+
+@api_router.post("/crews/assign")
+async def assign_student_to_crew(assignment: CrewAssignment, current_user: User = Depends(get_current_user)):
+    """Assign a student to a crew"""
+    if current_user.role != "teacher":
+        raise HTTPException(status_code=403, detail="Only teachers can assign students to crews")
+    
+    # Verify student and crew exist in the same class
+    student = await db.users.find_one({"id": assignment.student_id, "class_id": current_user.class_id, "role": "student"})
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+    
+    crew = await db.crews.find_one({"id": assignment.crew_id, "class_id": current_user.class_id})
+    if not crew:
+        raise HTTPException(status_code=404, detail="Crew not found")
+    
+    # Check if student is already in a crew
+    existing_membership = await db.crew_members.find_one({"user_id": assignment.student_id})
+    if existing_membership:
+        # Remove from current crew
+        await db.crew_members.delete_one({"user_id": assignment.student_id})
+    
+    # Check crew capacity
+    member_count = await db.crew_members.count_documents({"crew_id": assignment.crew_id})
+    if member_count >= 4:
+        raise HTTPException(status_code=400, detail="Crew is full (max 4 members)")
+    
+    # Add to new crew
+    crew_member = {
+        "id": str(uuid.uuid4()),
+        "crew_id": assignment.crew_id,
+        "user_id": assignment.student_id,
+        "joined_at": datetime.utcnow()
+    }
+    await db.crew_members.insert_one(crew_member)
+    
+    return {"message": "Student assigned to crew successfully"}
+
 @api_router.post("/quests")
 async def create_quest(quest_data: QuestCreate, current_user: User = Depends(get_current_user)):
     if current_user.role != "teacher":
