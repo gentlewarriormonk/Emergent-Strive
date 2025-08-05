@@ -102,7 +102,7 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Test the One Thing habit tracking app backend thoroughly including authentication flow, habit management, social features, data validation, and database operations"
+user_problem_statement: "Build the full gamification layer, advanced teacher views, CSV export, nightly cron, and redeploy Strive on the current FastAPI + MongoDB stack. This includes: 1) 6 new MongoDB collections (user_stats, crews, crew_members, quests, quest_completions, reward_items) 2) XP/level system with specific calculation logic 3) Crew auto-assignment with shared streak calculation 4) Quest system for teachers 5) Nightly cron job using APScheduler 6) New API endpoints 7) Frontend gamification elements 8) CSV export functionality"
 
 backend:
   - task: "User Registration (Students and Teachers)"
