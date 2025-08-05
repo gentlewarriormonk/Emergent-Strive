@@ -64,6 +64,7 @@ class HabitCreate(BaseModel):
     name: str
     repeats: str = "daily"  # daily, weekly, custom
     startDate: Optional[date] = None
+    custom_days: Optional[List[int]] = None  # For custom repeats: [1,3,5] for Mon, Wed, Fri
 
 class Habit(BaseModel):
     id: str
