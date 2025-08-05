@@ -787,6 +787,253 @@ async def get_class_info(current_user: User = Depends(get_current_user)):
         "your_role": current_user.role
     }
 
+# Gamification API Endpoints
+@api_router.post("/crews/join")
+async def join_crew(crew_request: CrewJoinRequest, current_user: User = Depends(get_current_user)):
+    # Check if user is already in a crew
+    existing_membership = await db.crew_members.find_one({"user_id": current_user.id})
+    if existing_membership:
+        raise HTTPException(status_code=400, detail="Already in a crew")
+    
+    # Verify crew exists and has space
+    crew = await db.crews.find_one({"id": crew_request.crew_id})
+    if not crew:
+        raise HTTPException(status_code=404, detail="Crew not found")
+    
+    member_count = await db.crew_members.count_documents({"crew_id": crew_request.crew_id})
+    if member_count >= 4:
+        raise HTTPException(status_code=400, detail="Crew is full")
+    
+    # Add user to crew
+    crew_member = {
+        "id": str(uuid.uuid4()),
+        "crew_id": crew_request.crew_id,
+        "user_id": current_user.id,
+        "joined_at": datetime.utcnow()
+    }
+    await db.crew_members.insert_one(crew_member)
+    
+    return {"message": "Successfully joined crew", "crew_name": crew["name"]}
+
+@api_router.get("/crews/me")
+async def get_my_crew(current_user: User = Depends(get_current_user)):
+    # Find user's crew membership
+    membership = await db.crew_members.find_one({"user_id": current_user.id})
+    if not membership:
+        raise HTTPException(status_code=404, detail="Not in a crew")
+    
+    # Get crew details
+    crew = await db.crews.find_one({"id": membership["crew_id"]})
+    if not crew:
+        raise HTTPException(status_code=404, detail="Crew not found")
+    
+    # Get crew members
+    members = await db.crew_members.find({"crew_id": crew["id"]}).to_list(4)
+    member_data = []
+    
+    for member in members:
+        user = await db.users.find_one({"id": member["user_id"]})
+        if user:
+            # Get user's best current streak
+            user_habits = await db.habits.find({"user_id": user["id"]}).to_list(100)
+            best_streak = 0
+            for habit in user_habits:
+                stats = await db.habit_stats.find_one({"habit_id": habit["id"]})
+                if stats:
+                    best_streak = max(best_streak, stats["current_streak"])
+            
+            member_data.append({
+                "name": user["name"],
+                "current_streak": best_streak,
+                "joined_at": member["joined_at"]
+            })
+    
+    return {
+        "crew_name": crew["name"],
+        "crew_streak": crew["crew_streak"],
+        "members": member_data
+    }
+
+@api_router.post("/quests")
+async def create_quest(quest_data: QuestCreate, current_user: User = Depends(get_current_user)):
+    if current_user.role != "teacher":
+        raise HTTPException(status_code=403, detail="Only teachers can create quests")
+    
+    quest_doc = {
+        "id": str(uuid.uuid4()),
+        "class_id": current_user.class_id,
+        "title": quest_data.title,
+        "description": quest_data.description,
+        "start_date": quest_data.start_date.isoformat(),
+        "end_date": quest_data.end_date.isoformat(),
+        "xp_reward": quest_data.xp_reward,
+        "created_by": current_user.id,
+        "created_at": datetime.utcnow()
+    }
+    
+    await db.quests.insert_one(quest_doc)
+    
+    return Quest(**quest_doc)
+
+@api_router.get("/quests")
+async def get_quests(current_user: User = Depends(get_current_user)):
+    # Get active quests for user's class
+    today = date.today()
+    quests = await db.quests.find({
+        "class_id": current_user.class_id,
+        "start_date": {"$lte": today.isoformat()},
+        "end_date": {"$gte": today.isoformat()}
+    }).to_list(100)
+    
+    # Check completion status for each quest
+    quest_list = []
+    for quest in quests:
+        completion = await db.quest_completions.find_one({
+            "quest_id": quest["id"],
+            "user_id": current_user.id
+        })
+        
+        quest_data = Quest(**quest)
+        quest_list.append({
+            "quest": quest_data.dict(),
+            "completed": completion["completed"] if completion else False,
+            "completed_at": completion["completed_at"] if completion and completion["completed"] else None
+        })
+    
+    return quest_list
+
+@api_router.post("/quests/{quest_id}/complete")
+async def complete_quest(quest_id: str, current_user: User = Depends(get_current_user)):
+    # Verify quest exists and is active
+    quest = await db.quests.find_one({"id": quest_id})
+    if not quest:
+        raise HTTPException(status_code=404, detail="Quest not found")
+    
+    today = date.today()
+    if today < date.fromisoformat(quest["start_date"]) or today > date.fromisoformat(quest["end_date"]):
+        raise HTTPException(status_code=400, detail="Quest is not active")
+    
+    # Check if already completed
+    existing_completion = await db.quest_completions.find_one({
+        "quest_id": quest_id,
+        "user_id": current_user.id
+    })
+    
+    if existing_completion and existing_completion["completed"]:
+        raise HTTPException(status_code=400, detail="Quest already completed")
+    
+    # Mark as completed
+    completion_doc = {
+        "id": str(uuid.uuid4()),
+        "quest_id": quest_id,
+        "user_id": current_user.id,
+        "completed": True,
+        "completed_at": datetime.utcnow()
+    }
+    
+    if existing_completion:
+        await db.quest_completions.update_one(
+            {"id": existing_completion["id"]},
+            {"$set": {"completed": True, "completed_at": datetime.utcnow()}}
+        )
+    else:
+        await db.quest_completions.insert_one(completion_doc)
+    
+    # Award XP
+    await award_xp(current_user.id, quest["xp_reward"], 1)
+    
+    return {"message": "Quest completed!", "xp_awarded": quest["xp_reward"]}
+
+@api_router.get("/stats/me")
+async def get_my_stats(current_user: User = Depends(get_current_user)):
+    user_stats = await db.user_stats.find_one({"user_id": current_user.id})
+    if not user_stats:
+        # Create default stats if not found
+        user_stats = {
+            "id": str(uuid.uuid4()),
+            "user_id": current_user.id,
+            "xp": 0,
+            "level": 1,
+            "best_streak": 0,
+            "total_completions": 0,
+            "created_at": datetime.utcnow()
+        }
+        await db.user_stats.insert_one(user_stats)
+    
+    # Calculate XP for next level
+    current_level = user_stats["level"]
+    next_level_xp = get_xp_for_level(current_level + 1)
+    current_level_xp = get_xp_for_level(current_level)
+    progress_xp = user_stats["xp"] - current_level_xp
+    required_xp = next_level_xp - current_level_xp
+    
+    return {
+        "xp": user_stats["xp"],
+        "level": user_stats["level"],
+        "best_streak": user_stats["best_streak"],
+        "total_completions": user_stats["total_completions"],
+        "next_level_xp": next_level_xp,
+        "progress_xp": progress_xp,
+        "required_xp": required_xp,
+        "progress_percentage": (progress_xp / required_xp * 100) if required_xp > 0 else 100
+    }
+
+@api_router.get("/classes/{class_id}/export")
+async def export_class_csv(class_id: str, range_days: int = 30, current_user: User = Depends(get_current_user)):
+    # Verify user is teacher and owns this class
+    if current_user.role != "teacher":
+        raise HTTPException(status_code=403, detail="Only teachers can export class data")
+    
+    class_doc = await db.classes.find_one({"id": class_id, "teacher_id": current_user.id})
+    if not class_doc:
+        raise HTTPException(status_code=404, detail="Class not found or access denied")
+    
+    # Get date range
+    end_date = date.today()
+    start_date = end_date - timedelta(days=range_days)
+    
+    # Get all students in class
+    students = await db.users.find({"class_id": class_id, "role": "student"}).to_list(1000)
+    
+    # Create CSV data
+    csv_data = []
+    csv_data.append(["student_name", "habit_name", "date", "completed"])
+    
+    for student in students:
+        # Get student's habits
+        habits = await db.habits.find({"user_id": student["id"]}).to_list(1000)
+        
+        for habit in habits:
+            # Get logs in date range
+            logs = await db.habit_logs.find({
+                "habit_id": habit["id"],
+                "date": {
+                    "$gte": start_date.isoformat(),
+                    "$lte": end_date.isoformat()
+                }
+            }).to_list(1000)
+            
+            for log in logs:
+                csv_data.append([
+                    student["name"],
+                    habit["title"],
+                    log["date"],
+                    "Yes" if log["completed"] else "No"
+                ])
+    
+    # Create CSV string
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerows(csv_data)
+    csv_content = output.getvalue()
+    output.close()
+    
+    return Response(
+        content=csv_content,
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=class_{class_id}_{range_days}day_export.csv"}
+    )
+
 # Include the router in the main app
 app.include_router(api_router)
 
