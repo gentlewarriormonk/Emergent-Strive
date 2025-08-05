@@ -1073,7 +1073,7 @@ async def get_my_stats(current_user: User = Depends(get_current_user)):
     current_level = user_stats["level"]
     next_level_xp = get_xp_for_level(current_level + 1)
     current_level_xp = get_xp_for_level(current_level)
-    progress_xp = user_stats["xp"] - current_level_xp
+    progress_xp = max(0, user_stats["xp"] - current_level_xp)  # Clamp at 0
     required_xp = next_level_xp - current_level_xp
     
     return {
