@@ -1349,6 +1349,81 @@ function App() {
   );
 }
 
+const CreateCrewModal = ({ isOpen, onClose, onCrewCreated }) => {
+  const [crewName, setCrewName] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!crewName.trim()) {
+      alert('Please enter a crew name');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await axios.post(`${API}/crews/create`, { name: crewName });
+      onCrewCreated();
+      onClose();
+      setCrewName('');
+    } catch (error) {
+      alert(error.response?.data?.detail || 'Failed to create crew');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4">
+      <div className="bg-card rounded-xl p-6 w-full max-w-md border border-gray-700">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-bold text-white">Create New Crew</h2>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-white text-xl"
+          >
+            ×
+          </button>
+        </div>
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Crew Name</label>
+            <input
+              type="text"
+              placeholder="e.g., Team Alpha, Squad 1"
+              value={crewName}
+              onChange={(e) => setCrewName(e.target.value)}
+              className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+              required
+            />
+          </div>
+
+          <div className="flex space-x-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-3 bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 hover:text-white transition-all"
+              disabled={loading}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="flex-1 py-3 bg-gradient-primary text-white rounded-lg hover:opacity-90 transition-all shadow-lg"
+              disabled={loading}
+            >
+              {loading ? 'Creating...' : 'Create Crew'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 const AppWithAuth = () => (
   <AuthProvider>
     <App />
