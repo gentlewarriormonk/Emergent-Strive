@@ -113,6 +113,71 @@ class ClassMemberData(BaseModel):
     completion_rate: float
     recent_activity: str
 
+# Gamification Models
+class UserStats(BaseModel):
+    id: str
+    user_id: str
+    xp: int = 0
+    level: int = 1
+    best_streak: int = 0
+    total_completions: int = 0
+    created_at: datetime
+
+class UserStatsCreate(BaseModel):
+    user_id: str
+    xp: int = 0
+    level: int = 1
+    best_streak: int = 0
+    total_completions: int = 0
+
+class Crew(BaseModel):
+    id: str
+    class_id: str
+    name: str
+    crew_streak: int = 0
+    created_at: datetime
+
+class CrewMember(BaseModel):
+    id: str
+    crew_id: str
+    user_id: str
+    joined_at: datetime
+
+class Quest(BaseModel):
+    id: str
+    class_id: str
+    title: str
+    description: str
+    start_date: date
+    end_date: date
+    xp_reward: int
+    created_by: str
+    created_at: datetime
+
+class QuestCreate(BaseModel):
+    title: str
+    description: str
+    start_date: date
+    end_date: date
+    xp_reward: int
+
+class QuestCompletion(BaseModel):
+    id: str
+    quest_id: str
+    user_id: str
+    completed: bool = False
+    completed_at: Optional[datetime] = None
+
+class RewardItem(BaseModel):
+    id: str
+    user_id: str
+    type: str  # 'crate' or 'badge'
+    label: str
+    awarded_at: datetime
+
+class CrewJoinRequest(BaseModel):
+    crew_id: str
+
 # Helper functions
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
