@@ -281,19 +281,36 @@ async def get_habits(current_user: User = Depends(get_current_user)):
     
     return result
 
-@api_router.post("/habits")
+@api_router.post("/habits", status_code=201)
 async def create_habit(habit_data: HabitCreate, current_user: User = Depends(get_current_user)):
+    # Map frontend fields to backend fields
+    start_date = habit_data.startDate or date.today()
+    frequency = habit_data.repeats  # Map 'repeats' to 'frequency'
+    
     habit_doc = {
         "id": str(uuid.uuid4()),
         "user_id": current_user.id,
-        "title": habit_data.title,
-        "frequency": habit_data.frequency,
-        "start_date": habit_data.start_date.isoformat(),
+        "title": habit_data.name,  # Map 'name' to 'title'
+        "frequency": frequency,
+        "start_date": start_date.isoformat(),
         "created_at": datetime.utcnow()
     }
     
     await db.habits.insert_one(habit_doc)
-    return Habit(**habit_doc)
+    
+    # Return the habit with recent_logs array for consistency
+    created_habit = Habit(**habit_doc)
+    return {
+        "habit": created_habit.dict(),
+        "today_completed": False,
+        "recent_logs": [],
+        "stats": {
+            "habit_id": created_habit.id,
+            "current_streak": 0,
+            "best_streak": 0,
+            "percent_complete": 0.0
+        }
+    }
 
 @api_router.post("/habits/{habit_id}/log")
 async def log_habit(habit_id: str, log_data: HabitLogCreate, current_user: User = Depends(get_current_user)):
