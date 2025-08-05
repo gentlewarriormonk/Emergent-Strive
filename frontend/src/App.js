@@ -526,6 +526,7 @@ const Dashboard = () => {
   const [crewData, setCrewData] = useState(null);
   const [quests, setQuests] = useState([]);
   const [showCreateQuest, setShowCreateQuest] = useState(false);
+  const [toast, setToast] = useState(null);
   const { user, logout } = useAuth();
 
   useEffect(() => {
