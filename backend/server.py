@@ -56,9 +56,9 @@ class User(BaseModel):
     created_at: datetime
 
 class HabitCreate(BaseModel):
-    title: str
-    frequency: str = "daily"  # daily, weekly
-    start_date: date
+    name: str
+    repeats: str = "daily"  # daily, weekly, custom
+    startDate: Optional[date] = None
 
 class Habit(BaseModel):
     id: str
