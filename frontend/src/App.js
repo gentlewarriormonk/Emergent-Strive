@@ -474,8 +474,43 @@ const Dashboard = () => {
       });
       fetchHabits();
       fetchClassData();
+      fetchUserStats(); // Refresh XP after habit completion
     } catch (error) {
       console.error('Error logging habit:', error);
+    }
+  };
+
+  const completeQuest = async (questId) => {
+    try {
+      await axios.post(`${API}/quests/${questId}/complete`);
+      fetchQuests();
+      fetchUserStats(); // Refresh XP after quest completion
+      alert('Quest completed! XP awarded!');
+    } catch (error) {
+      console.error('Error completing quest:', error);
+      alert(error.response?.data?.detail || 'Failed to complete quest');
+    }
+  };
+
+  const exportCSV = async () => {
+    if (user?.role !== 'teacher') return;
+    
+    try {
+      const response = await axios.get(`${API}/classes/${user.class_id}/export?range=30`, {
+        responseType: 'blob'
+      });
+      
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `class_${user.class_id}_30day_export.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error exporting CSV:', error);
+      alert('Failed to export CSV');
     }
   };
 
