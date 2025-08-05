@@ -248,6 +248,13 @@ async def get_habits(current_user: User = Depends(get_current_user)):
             "date": today.isoformat()
         })
         
+        # Get last 7 days of logs for status bar
+        seven_days_ago = today - timedelta(days=6)
+        recent_logs = await db.habit_logs.find({
+            "habit_id": habit.id,
+            "date": {"$gte": seven_days_ago.isoformat(), "$lte": today.isoformat()}
+        }).to_list(7)
+        
         # Get or calculate stats
         stats_doc = await db.habit_stats.find_one({"habit_id": habit.id})
         if not stats_doc:
@@ -268,6 +275,7 @@ async def get_habits(current_user: User = Depends(get_current_user)):
         result.append({
             "habit": habit.dict(),
             "today_completed": today_log["completed"] if today_log else False,
+            "recent_logs": recent_logs,
             "stats": HabitStats(**stats_doc).dict()
         })
     
