@@ -575,19 +575,36 @@ async def create_habit(habit_data: HabitCreate, current_user: User = Depends(get
     start_date = habit_data.startDate or date.today()
     frequency = habit_data.repeats  # Map 'repeats' to 'frequency'
     
+    # Handle custom repeats
+    custom_data = None
+    if habit_data.repeats == "custom" and habit_data.custom_days:
+        custom_data = {"type": "custom", "days": habit_data.custom_days}
+        frequency = "custom"
+    
     habit_doc = {
         "id": str(uuid.uuid4()),
         "user_id": current_user.id,
         "title": habit_data.name,  # Map 'name' to 'title'
         "frequency": frequency,
         "start_date": start_date.isoformat(),
+        "custom_data": custom_data,  # Store custom repeat data
         "created_at": datetime.utcnow()
     }
     
     await db.habits.insert_one(habit_doc)
     
+    # Create initial habit stats
+    stats_doc = {
+        "habit_id": habit_doc["id"],
+        "current_streak": 0,
+        "best_streak": 0,
+        "percent_complete": 0.0,
+        "updated_at": datetime.utcnow()
+    }
+    await db.habit_stats.insert_one(stats_doc)
+    
     # Return the habit with recent_logs array for consistency
-    created_habit = Habit(**habit_doc)
+    created_habit = Habit(**{k: v for k, v in habit_doc.items() if k != "custom_data"})  # Exclude custom_data from Habit model
     return {
         "habit": created_habit.dict(),
         "today_completed": False,
