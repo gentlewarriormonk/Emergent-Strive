@@ -735,8 +735,8 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* Crew Card */}
-      {crewData && (
+      {/* Crew Card - Only show if user is in a crew */}
+      {crewData && crewData.crew_name && (
         <div className="bg-card border-b border-gray-700">
           <div className="max-w-6xl mx-auto px-6 py-3">
             <div className="flex items-center justify-between">
