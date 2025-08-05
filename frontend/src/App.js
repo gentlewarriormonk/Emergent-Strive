@@ -646,7 +646,7 @@ const Dashboard = () => {
                                   </Td>
                                 </Tr>
                               ))}
-                            </tbody>
+                            </Tbody>
                           </Table>
                         </Box>
 
