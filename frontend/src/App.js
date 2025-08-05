@@ -970,7 +970,16 @@ const Dashboard = () => {
 
         {activeTab === 'analytics' && user?.role === 'teacher' && (
           <div className="bg-card rounded-xl p-6 border border-gray-700">
-            <h3 className="text-xl font-bold text-white mb-6">📊 Class Analytics</h3>
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold text-white">📊 Class Analytics</h3>
+              <button
+                onClick={exportCSV}
+                className="bg-gradient-primary text-white px-4 py-2 rounded-lg hover:opacity-90 transition-all flex items-center space-x-2 shadow-lg"
+              >
+                <span>📊</span>
+                <span>Export CSV</span>
+              </button>
+            </div>
             
             {analytics ? (
               <div className="space-y-6">
