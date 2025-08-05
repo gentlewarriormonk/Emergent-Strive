@@ -391,6 +391,76 @@ const AddHabitModal = ({ isOpen, onClose, onHabitAdded }) => {
   );
 };
 
+const CustomRepeatModal = ({ isOpen, onClose, onSave, initialDays = [] }) => {
+  const [selectedDays, setSelectedDays] = useState(initialDays);
+  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+  const toggleDay = (dayIndex) => {
+    setSelectedDays(prev => 
+      prev.includes(dayIndex) 
+        ? prev.filter(d => d !== dayIndex)
+        : [...prev, dayIndex].sort()
+    );
+  };
+
+  const handleSave = () => {
+    if (selectedDays.length === 0) {
+      alert('Please select at least one day');
+      return;
+    }
+    onSave(selectedDays);
+    onClose();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4">
+      <div className="bg-card rounded-xl p-6 w-full max-w-sm border border-gray-700">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-bold text-white">Custom Schedule</h2>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-white text-xl"
+          >
+            ×
+          </button>
+        </div>
+        
+        <div className="space-y-3">
+          <p className="text-sm text-gray-400 mb-4">Select the days you want to repeat this habit:</p>
+          {dayNames.map((day, index) => (
+            <label key={index} className="flex items-center space-x-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={selectedDays.includes(index)}
+                onChange={() => toggleDay(index)}
+                className="w-4 h-4 text-brand-500 bg-gray-700 border-gray-600 rounded focus:ring-brand-500"
+              />
+              <span className="text-white">{day}</span>
+            </label>
+          ))}
+        </div>
+
+        <div className="flex space-x-3 pt-6">
+          <button
+            onClick={onClose}
+            className="flex-1 py-3 bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 hover:text-white transition-all"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            className="flex-1 py-3 bg-gradient-primary text-white rounded-lg hover:opacity-90 transition-all shadow-lg"
+          >
+            Save Schedule
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const CreateQuestModal = ({ isOpen, onClose, onQuestCreated }) => {
   const [formData, setFormData] = useState({
     title: '',
