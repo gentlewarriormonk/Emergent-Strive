@@ -115,7 +115,7 @@ class ClassBasedHabitTrackerTester:
                                       f"Student {student_data['name']} joined existing class '{class_name}'")
                     else:
                         self.log_result("class_system", "Student Registration Joining Class", False, 
-                                      "Student not assigned to correct class")
+                                      f"Student class assignment issue: expected {self.test_classes[class_name]}, got {user.get('class_id', 'None')}")
                 else:
                     self.log_result("class_system", "Student Registration Joining Class", False, 
                                   "Missing token or user in response")
