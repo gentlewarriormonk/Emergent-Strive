@@ -178,6 +178,13 @@ class RewardItem(BaseModel):
 class CrewJoinRequest(BaseModel):
     crew_id: str
 
+class CrewAssignment(BaseModel):
+    student_id: str
+    crew_id: str
+
+class CrewCreate(BaseModel):
+    name: str
+
 # Helper functions
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
