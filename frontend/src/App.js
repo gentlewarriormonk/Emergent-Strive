@@ -386,6 +386,22 @@ const AddHabitModal = ({ isOpen, onClose, onHabitAdded }) => {
             </button>
           </div>
         </form>
+
+        {/* Custom Repeat Modal */}
+        <CustomRepeatModal
+          isOpen={showCustomModal}
+          onClose={() => {
+            setShowCustomModal(false);
+            if (formData.custom_days.length === 0) {
+              // Reset to daily if no custom days selected
+              setFormData(prev => ({ ...prev, repeats: 'daily' }));
+            }
+          }}
+          onSave={(selectedDays) => {
+            setFormData(prev => ({ ...prev, custom_days: selectedDays }));
+          }}
+          initialDays={formData.custom_days}
+        />
       </div>
     </div>
   );
