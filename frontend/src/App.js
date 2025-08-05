@@ -556,6 +556,46 @@ const Dashboard = () => {
         </div>
       </div>
 
+      {/* XP Progress Bar */}
+      {userStats && (
+        <div className="bg-card border-b border-gray-700">
+          <div className="max-w-6xl mx-auto px-6 py-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-white">Level {userStats.level}</span>
+              <span className="text-sm text-gray-400">{userStats.progress_xp}/{userStats.required_xp} XP</span>
+            </div>
+            <div className="w-full bg-gray-700 rounded-full h-3">
+              <div 
+                className="bg-gradient-primary h-3 rounded-full transition-all duration-500"
+                style={{ width: `${Math.min(userStats.progress_percentage || 0, 100)}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Crew Card */}
+      {crewData && (
+        <div className="bg-card border-b border-gray-700">
+          <div className="max-w-6xl mx-auto px-6 py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <span className="text-lg">👥</span>
+                <div>
+                  <span className="font-medium text-white">{crewData.crew_name}</span>
+                  <span className="text-sm text-gray-400 ml-2">({crewData.members?.length || 0}/4 members)</span>
+                </div>
+              </div>
+              <div className="flex items-center space-x-1">
+                <span className="text-lg">🔥</span>
+                <span className="font-bold text-missed text-lg">{crewData.crew_streak || 0}</span>
+                <span className="text-sm text-gray-400">crew streak</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-6xl mx-auto p-6">
         {/* Tabs */}
         <div className="flex space-x-1 bg-card rounded-lg p-1 mb-8 border border-gray-700">
