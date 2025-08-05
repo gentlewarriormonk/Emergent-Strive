@@ -392,20 +392,20 @@ class ClassBasedHabitTrackerTester:
         token = self.test_tokens[email]
         headers = {"Authorization": f"Bearer {token}"}
         
-        # Test creating a daily habit
+        # Test creating a daily habit - use correct field names
         habit_data = {
-            "title": "Morning Reading",
-            "frequency": "daily",
-            "start_date": date.today().isoformat()
+            "name": "Morning Reading",  # Changed from "title" to "name"
+            "repeats": "daily",         # Changed from "frequency" to "repeats"
+            "startDate": date.today().isoformat()  # Changed from "start_date" to "startDate"
         }
         
         try:
             response = requests.post(f"{self.base_url}/habits", json=habit_data, headers=headers)
-            if response.status_code == 200:
+            if response.status_code == 201:  # Changed from 200 to 201
                 data = response.json()
-                if "id" in data and data["title"] == habit_data["title"]:
-                    self.test_habits[email] = data["id"]
-                    self.log_result("habit_management", "Habit Creation", True, f"Created habit: {data['title']}")
+                if "habit" in data and data["habit"]["title"] == habit_data["name"]:  # Check nested structure
+                    self.test_habits[email] = data["habit"]["id"]
+                    self.log_result("habit_management", "Habit Creation", True, f"Created habit: {data['habit']['title']}")
                     
                     # Test habit logging
                     log_data = {
@@ -414,7 +414,7 @@ class ClassBasedHabitTrackerTester:
                     }
                     
                     try:
-                        log_response = requests.post(f"{self.base_url}/habits/{data['id']}/log", 
+                        log_response = requests.post(f"{self.base_url}/habits/{data['habit']['id']}/log", 
                                                    json=log_data, headers=headers)
                         if log_response.status_code == 200:
                             self.log_result("habit_management", "Habit Logging", True, "Successfully logged habit completion")
@@ -424,7 +424,7 @@ class ClassBasedHabitTrackerTester:
                     except Exception as e:
                         self.log_result("habit_management", "Habit Logging", False, f"Exception: {str(e)}")
                 else:
-                    self.log_result("habit_management", "Habit Creation", False, "Invalid habit data returned")
+                    self.log_result("habit_management", "Habit Creation", False, f"Invalid habit data returned: {data}")
             else:
                 self.log_result("habit_management", "Habit Creation", False, f"HTTP {response.status_code}: {response.text}")
         except Exception as e:
