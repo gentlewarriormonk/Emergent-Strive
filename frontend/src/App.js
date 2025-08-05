@@ -382,6 +382,10 @@ const Dashboard = () => {
   const [classInfo, setClassInfo] = useState(null);
   const [analytics, setAnalytics] = useState(null);
   const [activeTab, setActiveTab] = useState('habits');
+  const [userStats, setUserStats] = useState(null);
+  const [crewData, setCrewData] = useState(null);
+  const [quests, setQuests] = useState([]);
+  const [showCreateQuest, setShowCreateQuest] = useState(false);
   const { user, logout } = useAuth();
 
   useEffect(() => {
