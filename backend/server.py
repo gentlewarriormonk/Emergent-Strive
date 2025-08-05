@@ -981,6 +981,24 @@ async def assign_student_to_crew(assignment: CrewAssignment, current_user: User 
     
     return {"message": "Student assigned to crew successfully"}
 
+@api_router.delete("/crews/members/{student_id}")
+async def remove_student_from_crew(student_id: str, current_user: User = Depends(get_current_user)):
+    """Remove a student from their current crew"""
+    if current_user.role != "teacher":
+        raise HTTPException(status_code=403, detail="Only teachers can manage crew assignments")
+    
+    # Verify student exists in the same class
+    student = await db.users.find_one({"id": student_id, "class_id": current_user.class_id, "role": "student"})
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+    
+    # Remove from crew
+    result = await db.crew_members.delete_one({"user_id": student_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Student is not in any crew")
+    
+    return {"message": "Student removed from crew successfully"}
+
 @api_router.post("/quests")
 async def create_quest(quest_data: QuestCreate, current_user: User = Depends(get_current_user)):
     if current_user.role != "teacher":
