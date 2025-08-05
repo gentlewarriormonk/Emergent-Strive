@@ -642,6 +642,7 @@ const Dashboard = () => {
     fetchQuests();
     if (user?.role === 'teacher') {
       fetchAnalytics();
+      fetchCrewManagement();
     }
   }, [user]);
 
