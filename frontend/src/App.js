@@ -1154,7 +1154,7 @@ const Dashboard = () => {
                       <div key={member.id} className="flex justify-between items-center bg-gray-700 rounded-lg p-3">
                         <span className="text-white">{member.name}</span>
                         <button
-                          onClick={() => assignStudentToCrew(member.id, '')}
+                          onClick={() => removeStudentFromCrew(member.id)}
                           className="text-gray-400 hover:text-red-400 text-sm"
                           title="Remove from crew"
                         >
