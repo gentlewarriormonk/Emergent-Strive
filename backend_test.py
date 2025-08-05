@@ -918,7 +918,8 @@ class ClassBasedHabitTrackerTester:
             response = requests.get(f"{self.base_url}/classes/{teacher_class_id}/export?range=30", 
                                   headers=headers)
             if response.status_code == 200:
-                if response.headers.get("content-type") == "text/csv":
+                content_type = response.headers.get("content-type", "")
+                if "text/csv" in content_type:  # Accept any CSV content type variant
                     csv_content = response.text
                     lines = csv_content.strip().split('\n')
                     if len(lines) > 0:
@@ -935,7 +936,7 @@ class ClassBasedHabitTrackerTester:
                                       "CSV exported (empty, which is valid)")
                 else:
                     self.log_result("csv_export", "CSV Export Format", False, 
-                                  f"Wrong content type: {response.headers.get('content-type')}")
+                                  f"Wrong content type: {content_type}")
             else:
                 self.log_result("csv_export", "CSV Export", False, 
                               f"Failed to export CSV: {response.status_code}")
