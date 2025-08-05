@@ -1,125 +1,9 @@
 import React, { useState, useEffect, createContext, useContext } from "react";
-import {
-  ChakraProvider,
-  ColorModeScript,
-  Box,
-  Flex,
-  Text,
-  Button,
-  VStack,
-  HStack,
-  Image,
-  Input,
-  Select,
-  FormControl,
-  FormLabel,
-  Card,
-  CardBody,
-  useDisclosure,
-  useToast,
-  Container,
-  Tabs,
-  TabList,
-  TabPanels,
-  Tab,
-  TabPanel,
-  Table,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  Td,
-  Badge,
-  Divider,
-  Grid,
-  GridItem,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalCloseButton,
-  Circle,
-} from "@chakra-ui/react";
-import { extendTheme } from "@chakra-ui/react";
-import { AddIcon, CheckIcon } from "@chakra-ui/icons";
+import "./App.css";
 import axios from "axios";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
-
-// Theme configuration
-const config = {
-  initialColorMode: 'dark',
-  useSystemColorMode: false,
-}
-
-const theme = extendTheme({
-  config,
-  fonts: {
-    heading: "'Inter', sans-serif",
-    body: "'Inter', sans-serif",
-  },
-  colors: {
-    brand: {
-      50: '#e6f3ff',
-      100: '#b3daff',
-      200: '#80c1ff',
-      300: '#4da8ff',
-      400: '#1a8fff',
-      500: '#00AEEF',
-      600: '#0099d6',
-      700: '#0084bd',
-      800: '#006fa4',
-      900: '#0D2B8E',
-    },
-    surface: '#0E1117',
-    card: '#15191E',
-    success: '#00E778',
-    missed: '#FF6B00',
-  },
-  styles: {
-    global: (props) => ({
-      body: {
-        bg: props.colorMode === 'dark' ? 'surface' : 'white',
-        color: props.colorMode === 'dark' ? 'white' : 'gray.800',
-      },
-    }),
-  },
-  components: {
-    Button: {
-      variants: {
-        primary: {
-          background: 'linear-gradient(135deg, #0D2B8E 0%, #00AEEF 100%)',
-          color: 'white',
-          _hover: {
-            background: 'linear-gradient(135deg, #0a2478 0%, #0099d6 100%)',
-            transform: 'translateY(-1px)',
-          },
-          _active: {
-            transform: 'translateY(0)',
-          },
-        },
-        secondary: {
-          bg: 'gray.700',
-          color: 'white',
-          _hover: {
-            bg: 'gray.600',
-          },
-        },
-      },
-    },
-    Card: {
-      baseStyle: (props) => ({
-        container: {
-          bg: props.colorMode === 'dark' ? 'card' : 'white',
-          borderRadius: 'xl',
-          boxShadow: 'lg',
-        },
-      }),
-    },
-  },
-});
 
 // Auth Context
 const AuthContext = createContext();
@@ -157,7 +41,155 @@ const AuthProvider = ({ children }) => {
 
 const useAuth = () => useContext(AuthContext);
 
-// HabitCard Component
+// Components
+const AuthForm = () => {
+  const [isLogin, setIsLogin] = useState(true);
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    password: '',
+    role: 'student',
+    class_name: ''
+  });
+  const [loading, setLoading] = useState(false);
+  const { login } = useAuth();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    
+    try {
+      const endpoint = isLogin ? '/auth/login' : '/auth/register';
+      const payload = isLogin 
+        ? { email: formData.email, password: formData.password }
+        : formData;
+      
+      const response = await axios.post(`${API}${endpoint}`, payload);
+      login(response.data.user, response.data.token);
+    } catch (error) {
+      alert(error.response?.data?.detail || 'Authentication failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-surface flex items-center justify-center p-4">
+      <div className="bg-card rounded-2xl shadow-2xl p-8 w-full max-w-md border border-gray-700">
+        <div className="text-center mb-8">
+          <div className="flex items-center justify-center space-x-3 mb-4">
+            <img src="/strive-logo.svg" alt="Strive" className="w-12 h-12" />
+            <h1 className="text-4xl font-bold text-white font-inter">Strive</h1>
+          </div>
+          <p className="text-gray-400">Track habits with your class</p>
+        </div>
+        
+        <div className="flex mb-6 bg-gray-700 rounded-lg p-1">
+          <button
+            className={`flex-1 py-2 px-4 rounded-md transition-all font-medium ${
+              isLogin ? 'bg-gradient-primary text-white shadow-sm' : 'text-gray-300 hover:text-white'
+            }`}
+            onClick={() => setIsLogin(true)}
+          >
+            Login
+          </button>
+          <button
+            className={`flex-1 py-2 px-4 rounded-md transition-all font-medium ${
+              !isLogin ? 'bg-gradient-primary text-white shadow-sm' : 'text-gray-300 hover:text-white'
+            }`}
+            onClick={() => setIsLogin(false)}
+          >
+            Sign Up
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {!isLogin && (
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Full Name</label>
+              <input
+                type="text"
+                placeholder="Enter your name"
+                value={formData.name}
+                onChange={(e) => setFormData({...formData, name: e.target.value})}
+                className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                required
+              />
+            </div>
+          )}
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Email</label>
+            <input
+              type="email"
+              placeholder="Enter your email"
+              value={formData.email}
+              onChange={(e) => setFormData({...formData, email: e.target.value})}
+              className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+              required
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Password</label>
+            <input
+              type="password"
+              placeholder="Enter your password"
+              value={formData.password}
+              onChange={(e) => setFormData({...formData, password: e.target.value})}
+              className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+              required
+            />
+          </div>
+
+          {!isLogin && (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Role</label>
+                <select
+                  value={formData.role}
+                  onChange={(e) => setFormData({...formData, role: e.target.value})}
+                  className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                >
+                  <option value="student">Student</option>
+                  <option value="teacher">Teacher</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  {formData.role === 'teacher' ? 'Create Class Name' : 'Join Class Name'}
+                </label>
+                <input
+                  type="text"
+                  placeholder={formData.role === 'teacher' ? 'Create class name' : 'Ask teacher for class name'}
+                  value={formData.class_name}
+                  onChange={(e) => setFormData({...formData, class_name: e.target.value})}
+                  className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                  required
+                />
+                {formData.role === 'student' && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Ask your teacher for the exact class name
+                  </p>
+                )}
+              </div>
+            </>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-gradient-primary text-white py-3 rounded-lg font-semibold hover:opacity-90 transition-all disabled:opacity-50 shadow-lg"
+          >
+            {loading ? 'Loading...' : (isLogin ? 'Login' : 'Sign Up')}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 const HabitCard = ({ habitData, onToggle }) => {
   const { habit, today_completed, stats, recent_logs = [] } = habitData;
   
@@ -180,7 +212,6 @@ const HabitCard = ({ habitData, onToggle }) => {
       } else if (log) {
         status = log.completed ? 'completed' : 'missed';
       } else {
-        // For dates before habit start date, show as future/neutral
         const habitStartDate = new Date(habit.start_date);
         status = date < habitStartDate ? 'future' : 'missed';
       }
@@ -193,76 +224,51 @@ const HabitCard = ({ habitData, onToggle }) => {
 
   const statusDots = getLast7DaysStatus();
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'completed':
-        return 'success';
-      case 'missed':
-        return 'missed';
-      case 'today':
-        return 'gray.400';
-      case 'future':
-        return 'gray.600';
-      default:
-        return 'gray.400';
-    }
-  };
-
   return (
-    <Card>
-      <CardBody>
-        <Flex justify="space-between" align="start" mb={4}>
-          <VStack align="start" spacing={1} flex={1}>
-            <Text fontSize="lg" fontWeight="bold" color="white">
-              {habit.title}
-            </Text>
-            <HStack>
-              <Text fontSize="sm" color="gray.400">
-                🔥 {stats.current_streak} day streak
-              </Text>
-              <Text fontSize="sm" color="gray.400">
-                •
-              </Text>
-              <Text fontSize="sm" color="gray.400">
-                {Math.round(stats.percent_complete)}% completion rate
-              </Text>
-            </HStack>
-          </VStack>
-          
-          <Button
-            variant={today_completed ? 'primary' : 'secondary'}
-            size="sm"
-            onClick={() => onToggle(habit.id, today_completed)}
-            leftIcon={today_completed ? <CheckIcon /> : undefined}
-            minW="80px"
-          >
-            {today_completed ? 'Done' : 'Mark'}
-          </Button>
-        </Flex>
+    <div className="bg-card rounded-xl p-6 border border-gray-700 hover:border-gray-600 transition-all">
+      <div className="flex justify-between items-start mb-4">
+        <div className="flex-1">
+          <h3 className="text-lg font-semibold text-white mb-2">{habit.title}</h3>
+          <div className="flex items-center space-x-4 text-sm text-gray-400">
+            <span>🔥 {stats.current_streak} day streak</span>
+            <span>•</span>
+            <span>{Math.round(stats.percent_complete)}% completion rate</span>
+          </div>
+        </div>
+        
+        <button
+          onClick={() => onToggle(habit.id, today_completed)}
+          className={`px-4 py-2 rounded-lg font-medium transition-all ${
+            today_completed 
+              ? 'bg-gradient-primary text-white shadow-lg' 
+              : 'bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white'
+          }`}
+        >
+          {today_completed ? '✓ Done' : 'Mark'}
+        </button>
+      </div>
 
-        {/* 7-day status bar */}
-        <VStack align="start" spacing={2}>
-          <Text fontSize="xs" color="gray.500" fontWeight="medium">
-            LAST 7 DAYS
-          </Text>
-          <HStack spacing={2}>
-            {statusDots.map((day, index) => (
-              <Circle
-                key={day.date}
-                size="10px"
-                bg={getStatusColor(day.status)}
-                border={day.isToday ? "2px solid" : "none"}
-                borderColor={day.isToday ? "white" : "transparent"}
-              />
-            ))}
-          </HStack>
-        </VStack>
-      </CardBody>
-    </Card>
+      {/* 7-day status bar */}
+      <div className="space-y-2">
+        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Last 7 Days</p>
+        <div className="flex space-x-2">
+          {statusDots.map((day, index) => (
+            <div
+              key={day.date}
+              className={`w-2.5 h-2.5 rounded-full ${
+                day.status === 'completed' ? 'bg-success' :
+                day.status === 'missed' ? 'bg-missed' :
+                day.status === 'today' ? 'bg-gray-400 ring-2 ring-white' :
+                'bg-gray-600'
+              }`}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
   );
 };
 
-// AddHabitModal Component
 const AddHabitModal = ({ isOpen, onClose, onHabitAdded }) => {
   const [formData, setFormData] = useState({
     title: '',
@@ -270,31 +276,17 @@ const AddHabitModal = ({ isOpen, onClose, onHabitAdded }) => {
     start_date: new Date().toISOString().split('T')[0],
   });
   const [loading, setLoading] = useState(false);
-  const toast = useToast();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.title.trim()) {
-      toast({
-        title: 'Error',
-        description: 'Please enter a habit name',
-        status: 'error',
-        duration: 3000,
-        isClosable: true,
-      });
+      alert('Please enter a habit name');
       return;
     }
 
     setLoading(true);
     try {
       await axios.post(`${API}/habits`, formData);
-      toast({
-        title: 'Success',
-        description: 'Habit created successfully!',
-        status: 'success',
-        duration: 3000,
-        isClosable: true,
-      });
       onHabitAdded();
       onClose();
       setFormData({
@@ -303,346 +295,93 @@ const AddHabitModal = ({ isOpen, onClose, onHabitAdded }) => {
         start_date: new Date().toISOString().split('T')[0],
       });
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to create habit',
-        status: 'error',
-        duration: 3000,
-        isClosable: true,
-      });
+      alert('Failed to create habit');
     } finally {
       setLoading(false);
     }
   };
 
+  if (!isOpen) return null;
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="sm">
-      <ModalOverlay bg="blackAlpha.800" />
-      <ModalContent bg="card" maxW="400px">
-        <ModalHeader color="white">Add New Habit</ModalHeader>
-        <ModalCloseButton color="white" />
-        <ModalBody pb={6}>
-          <form onSubmit={handleSubmit}>
-            <VStack spacing={4}>
-              <FormControl>
-                <FormLabel color="gray.300" fontSize="sm" fontWeight="medium">
-                  Name
-                </FormLabel>
-                <Input
-                  placeholder="e.g., Read 10 pages"
-                  value={formData.title}
-                  onChange={(e) =>
-                    setFormData({ ...formData, title: e.target.value })
-                  }
-                  bg="gray.700"
-                  border="1px solid"
-                  borderColor="gray.600"
-                  color="white"
-                  _placeholder={{ color: 'gray.400' }}
-                  _focus={{
-                    borderColor: 'brand.500',
-                    boxShadow: '0 0 0 1px #00AEEF',
-                  }}
-                />
-              </FormControl>
+    <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4">
+      <div className="bg-card rounded-xl p-6 w-full max-w-md border border-gray-700">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-bold text-white">Add New Habit</h2>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-white text-xl"
+          >
+            ×
+          </button>
+        </div>
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Name</label>
+            <input
+              type="text"
+              placeholder="e.g., Read 10 pages"
+              value={formData.title}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+              required
+            />
+          </div>
 
-              <FormControl>
-                <FormLabel color="gray.300" fontSize="sm" fontWeight="medium">
-                  Repeats
-                </FormLabel>
-                <Select
-                  value={formData.frequency}
-                  onChange={(e) =>
-                    setFormData({ ...formData, frequency: e.target.value })
-                  }
-                  bg="gray.700"
-                  border="1px solid"
-                  borderColor="gray.600"
-                  color="white"
-                  _focus={{
-                    borderColor: 'brand.500',
-                    boxShadow: '0 0 0 1px #00AEEF',
-                  }}
-                >
-                  <option value="daily" style={{ backgroundColor: '#2D3748' }}>
-                    Daily
-                  </option>
-                  <option value="weekly" style={{ backgroundColor: '#2D3748' }}>
-                    Weekly
-                  </option>
-                </Select>
-              </FormControl>
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Repeats</label>
+            <select
+              value={formData.frequency}
+              onChange={(e) => setFormData({ ...formData, frequency: e.target.value })}
+              className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+            >
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+            </select>
+          </div>
 
-              <FormControl>
-                <FormLabel color="gray.300" fontSize="sm" fontWeight="medium">
-                  Start date (optional)
-                </FormLabel>
-                <Input
-                  type="date"
-                  value={formData.start_date}
-                  onChange={(e) =>
-                    setFormData({ ...formData, start_date: e.target.value })
-                  }
-                  bg="gray.700"
-                  border="1px solid"
-                  borderColor="gray.600"
-                  color="white"
-                  _focus={{
-                    borderColor: 'brand.500',
-                    boxShadow: '0 0 0 1px #00AEEF',
-                  }}
-                />
-              </FormControl>
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Start date (optional)</label>
+            <input
+              type="date"
+              value={formData.start_date}
+              onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+              className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+            />
+          </div>
 
-              <HStack w="full" spacing={3} pt={4}>
-                <Button
-                  variant="secondary"
-                  onClick={onClose}
-                  flex={1}
-                  isDisabled={loading}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="primary"
-                  type="submit"
-                  flex={1}
-                  isLoading={loading}
-                  loadingText="Creating..."
-                >
-                  Create Habit
-                </Button>
-              </HStack>
-            </VStack>
-          </form>
-        </ModalBody>
-      </ModalContent>
-    </Modal>
+          <div className="flex space-x-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-3 bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 hover:text-white transition-all"
+              disabled={loading}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="flex-1 py-3 bg-gradient-primary text-white rounded-lg hover:opacity-90 transition-all shadow-lg"
+              disabled={loading}
+            >
+              {loading ? 'Creating...' : 'Create Habit'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 };
 
-// Navbar Component
-const Navbar = () => {
-  const { user, logout } = useAuth();
-
-  return (
-    <Box
-      bg="linear-gradient(135deg, #0D2B8E 0%, #00AEEF 100%)"
-      px={6}
-      py={4}
-      borderBottom="1px solid"
-      borderColor="gray.700"
-    >
-      <Container maxW="6xl">
-        <Flex justify="space-between" align="center">
-          <HStack spacing={3}>
-            <Image src="/strive-logo.svg" alt="Strive" w="40px" h="40px" />
-          </HStack>
-          
-          {user && (
-            <HStack spacing={4}>
-              <Text color="white" fontSize="sm">
-                Welcome, {user.name}
-              </Text>
-              <Button variant="secondary" size="sm" onClick={logout}>
-                Logout
-              </Button>
-            </HStack>
-          )}
-        </Flex>
-      </Container>
-    </Box>
-  );
-};
-
-// Auth Form Component
-const AuthForm = () => {
-  const [isLogin, setIsLogin] = useState(true);
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    role: 'student',
-    class_name: ''
-  });
-  const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
-  const toast = useToast();
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    
-    try {
-      const endpoint = isLogin ? '/auth/login' : '/auth/register';
-      const payload = isLogin 
-        ? { email: formData.email, password: formData.password }
-        : formData;
-      
-      const response = await axios.post(`${API}${endpoint}`, payload);
-      login(response.data.user, response.data.token);
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: error.response?.data?.detail || 'Authentication failed',
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <Container maxW="md" py={20}>
-      <Card>
-        <CardBody p={8}>
-          <VStack spacing={6}>
-            <VStack spacing={2}>
-              <HStack spacing={3}>
-                <Image src="/strive-logo.svg" alt="Strive" w="48px" h="48px" />
-                <Text fontSize="3xl" fontWeight="bold" color="white">
-                  Strive
-                </Text>
-              </HStack>
-              <Text color="gray.400" textAlign="center">
-                Track habits with your class
-              </Text>
-            </VStack>
-            
-            <HStack w="full" bg="gray.700" p={1} borderRadius="lg">
-              <Button
-                variant={isLogin ? "primary" : "ghost"}
-                onClick={() => setIsLogin(true)}
-                flex={1}
-                size="sm"
-              >
-                Login
-              </Button>
-              <Button
-                variant={!isLogin ? "primary" : "ghost"}
-                onClick={() => setIsLogin(false)}
-                flex={1}
-                size="sm"
-              >
-                Sign Up
-              </Button>
-            </HStack>
-
-            <form onSubmit={handleSubmit} style={{ width: '100%' }}>
-              <VStack spacing={4}>
-                {!isLogin && (
-                  <FormControl>
-                    <FormLabel color="gray.300">Full Name</FormLabel>
-                    <Input
-                      type="text"
-                      placeholder="Enter your name"
-                      value={formData.name}
-                      onChange={(e) => setFormData({...formData, name: e.target.value})}
-                      bg="gray.700"
-                      border="1px solid"
-                      borderColor="gray.600"
-                      required
-                    />
-                  </FormControl>
-                )}
-                
-                <FormControl>
-                  <FormLabel color="gray.300">Email</FormLabel>
-                  <Input
-                    type="email"
-                    placeholder="Enter your email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({...formData, email: e.target.value})}
-                    bg="gray.700"
-                    border="1px solid"
-                    borderColor="gray.600"
-                    required
-                  />
-                </FormControl>
-                
-                <FormControl>
-                  <FormLabel color="gray.300">Password</FormLabel>
-                  <Input
-                    type="password"
-                    placeholder="Enter your password"
-                    value={formData.password}
-                    onChange={(e) => setFormData({...formData, password: e.target.value})}
-                    bg="gray.700"
-                    border="1px solid"
-                    borderColor="gray.600"
-                    required
-                  />
-                </FormControl>
-
-                {!isLogin && (
-                  <>
-                    <FormControl>
-                      <FormLabel color="gray.300">Role</FormLabel>
-                      <Select
-                        value={formData.role}
-                        onChange={(e) => setFormData({...formData, role: e.target.value})}
-                        bg="gray.700"
-                        border="1px solid"
-                        borderColor="gray.600"
-                      >
-                        <option value="student">Student</option>
-                        <option value="teacher">Teacher</option>
-                      </Select>
-                    </FormControl>
-                    
-                    <FormControl>
-                      <FormLabel color="gray.300">
-                        {formData.role === 'teacher' ? 'Create Class Name' : 'Join Class Name'}
-                      </FormLabel>
-                      <Input
-                        type="text"
-                        placeholder={formData.role === 'teacher' ? 'Create class name' : 'Ask teacher for class name'}
-                        value={formData.class_name}
-                        onChange={(e) => setFormData({...formData, class_name: e.target.value})}
-                        bg="gray.700"
-                        border="1px solid"
-                        borderColor="gray.600"
-                        required
-                      />
-                      {formData.role === 'student' && (
-                        <Text fontSize="xs" color="gray.500" mt={1}>
-                          Ask your teacher for the exact class name
-                        </Text>
-                      )}
-                    </FormControl>
-                  </>
-                )}
-
-                <Button
-                  type="submit"
-                  variant="primary"
-                  size="lg"
-                  w="full"
-                  isLoading={loading}
-                  loadingText={isLogin ? 'Logging in...' : 'Signing up...'}
-                >
-                  {isLogin ? 'Login' : 'Sign Up'}
-                </Button>
-              </VStack>
-            </form>
-          </VStack>
-        </CardBody>
-      </Card>
-    </Container>
-  );
-};
-
-// Dashboard Component
 const Dashboard = () => {
   const [habits, setHabits] = useState([]);
+  const [showAddForm, setShowAddForm] = useState(false);
   const [classData, setClassData] = useState([]);
   const [classInfo, setClassInfo] = useState(null);
   const [analytics, setAnalytics] = useState(null);
-  const { user } = useAuth();
-  const { isOpen, onOpen, onClose } = useDisclosure();
-  const toast = useToast();
+  const [activeTab, setActiveTab] = useState('habits');
+  const { user, logout } = useAuth();
 
   useEffect(() => {
     fetchHabits();
@@ -699,326 +438,275 @@ const Dashboard = () => {
       });
       fetchHabits();
       fetchClassData();
-      toast({
-        title: 'Success',
-        description: completed ? 'Habit unmarked' : 'Habit completed! 🔥',
-        status: 'success',
-        duration: 2000,
-        isClosable: true,
-      });
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to update habit',
-        status: 'error',
-        duration: 3000,
-        isClosable: true,
-      });
+      console.error('Error logging habit:', error);
     }
   };
 
-  const handleHabitAdded = () => {
-    fetchHabits();
+  const getTabs = () => {
+    const tabs = [
+      { id: 'habits', label: 'My Habits' },
+      { id: 'class', label: 'My Class' }
+    ];
+    
+    if (user?.role === 'teacher') {
+      tabs.push({ id: 'analytics', label: 'Analytics' });
+    }
+    
+    return tabs;
   };
 
   return (
-    <Box>
-      <Navbar />
-      
-      <Container maxW="6xl" py={8}>
-        <Tabs colorScheme="brand" variant="soft-rounded">
-          <TabList mb={8} bg="card" p={2} borderRadius="xl">
-            <Tab>My Habits</Tab>
-            <Tab>My Class</Tab>
-            {user?.role === 'teacher' && <Tab>Analytics</Tab>}
-          </TabList>
-
-          <TabPanels>
-            {/* My Habits Tab */}
-            <TabPanel p={0}>
-              <VStack spacing={6} align="stretch">
-                <Flex justify="space-between" align="center">
-                  <VStack align="start" spacing={1}>
-                    <Text fontSize="2xl" fontWeight="bold" color="white">
-                      Today's Habits
-                    </Text>
-                    {classInfo && (
-                      <Text color="gray.400" fontSize="sm">
-                        📚 {classInfo.class_name}
-                      </Text>
-                    )}
-                  </VStack>
-                  <Button
-                    variant="primary"
-                    leftIcon={<AddIcon />}
-                    onClick={onOpen}
-                  >
-                    Add Habit
-                  </Button>
-                </Flex>
-
-                {/* Single-column habit list */}
-                <Container maxW="480px" px={0}>
-                  <VStack spacing={4} align="stretch">
-                    {habits.map((habitData) => (
-                      <HabitCard
-                        key={habitData.habit.id}
-                        habitData={habitData}
-                        onToggle={toggleHabit}
-                      />
-                    ))}
-                    
-                    {habits.length === 0 && (
-                      <Card>
-                        <CardBody textAlign="center" py={12}>
-                          <Text fontSize="4xl" mb={4}>🎯</Text>
-                          <Text fontSize="lg" fontWeight="semibold" color="white" mb={2}>
-                            No habits yet
-                          </Text>
-                          <Text color="gray.400" mb={6}>
-                            Start building your daily routine!
-                          </Text>
-                          <Button variant="primary" leftIcon={<AddIcon />} onClick={onOpen}>
-                            Add Your First Habit
-                          </Button>
-                        </CardBody>
-                      </Card>
-                    )}
-                  </VStack>
-                </Container>
-              </VStack>
-            </TabPanel>
-
-            {/* My Class Tab */}
-            <TabPanel p={0}>
-              <VStack spacing={6} align="stretch">
-                {/* Class Info */}
+    <div className="min-h-screen bg-surface">
+      {/* Header */}
+      <div className="bg-gradient-primary border-b border-gray-700">
+        <div className="max-w-6xl mx-auto px-6 py-4">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center space-x-3">
+              <img src="/strive-logo.svg" alt="Strive" className="w-10 h-10" />
+              <div>
+                <h1 className="text-2xl font-bold text-white font-inter">Strive</h1>
                 {classInfo && (
-                  <Card>
-                    <CardBody>
-                      <Text fontSize="xl" fontWeight="bold" color="white" mb={4}>
-                        📚 Class Overview
-                      </Text>
-                      <Grid templateColumns="repeat(auto-fit, minmax(200px, 1fr))" gap={6}>
-                        <GridItem>
-                          <Text fontSize="2xl" fontWeight="bold" color="brand.500">
-                            {classInfo.class_name}
-                          </Text>
-                          <Text fontSize="sm" color="gray.400">Class Name</Text>
-                        </GridItem>
-                        <GridItem>
-                          <Text fontSize="2xl" fontWeight="bold" color="success">
-                            {classInfo.teacher_name}
-                          </Text>
-                          <Text fontSize="sm" color="gray.400">Teacher</Text>
-                        </GridItem>
-                        <GridItem>
-                          <Text fontSize="2xl" fontWeight="bold" color="missed">
-                            {classInfo.student_count}
-                          </Text>
-                          <Text fontSize="sm" color="gray.400">Students</Text>
-                        </GridItem>
-                      </Grid>
-                    </CardBody>
-                  </Card>
+                  <p className="text-sm text-blue-100">📚 {classInfo.class_name}</p>
                 )}
+              </div>
+            </div>
+            <div className="flex items-center space-x-4">
+              <span className="text-white text-sm">Welcome, {user?.name}</span>
+              <button
+                onClick={logout}
+                className="bg-white bg-opacity-20 hover:bg-opacity-30 px-4 py-2 rounded-lg text-white transition-all"
+              >
+                Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
 
-                {/* Class Leaderboard */}
-                <Card>
-                  <CardBody>
-                    <Text fontSize="xl" fontWeight="bold" color="white" mb={4}>
-                      🏆 Class Leaderboard
-                    </Text>
-                    {classData.length > 0 ? (
-                      <VStack spacing={3} align="stretch">
-                        {classData.map((member, index) => (
-                          <Box
-                            key={member.name}
-                            p={4}
-                            bg="gray.700"
-                            borderRadius="lg"
-                            border={index < 3 ? "2px solid" : "1px solid"}
-                            borderColor={
-                              index === 0 ? "yellow.400" :
-                              index === 1 ? "gray.300" :
-                              index === 2 ? "orange.400" : "gray.600"
-                            }
-                          >
-                            <Flex justify="space-between" align="center">
-                              <HStack spacing={4}>
-                                <Flex
-                                  w="32px"
-                                  h="32px"
-                                  bg={
-                                    index === 0 ? "yellow.400" :
-                                    index === 1 ? "gray.300" :
-                                    index === 2 ? "orange.400" : "brand.500"
-                                  }
-                                  color={index < 3 ? "black" : "white"}
-                                  borderRadius="full"
-                                  align="center"
-                                  justify="center"
-                                  fontWeight="bold"
-                                >
-                                  {index + 1}
-                                </Flex>
-                                <VStack align="start" spacing={1}>
-                                  <HStack>
-                                    <Text fontWeight="semibold" color="white">
-                                      {member.name}
-                                    </Text>
-                                    {member.role === 'teacher' && (
-                                      <Badge colorScheme="purple" size="sm">
-                                        Teacher
-                                      </Badge>
-                                    )}
-                                  </HStack>
-                                  <Text fontSize="sm" color="gray.400">
-                                    {member.total_habits} habits • {member.completion_rate}% success
-                                  </Text>
-                                  <Text fontSize="xs" color="gray.500">
-                                    {member.recent_activity}
-                                  </Text>
-                                </VStack>
-                              </HStack>
-                              <HStack>
-                                <Text fontSize="lg">🔥</Text>
-                                <Text fontSize="xl" fontWeight="bold" color="missed">
-                                  {member.current_best_streak}
-                                </Text>
-                              </HStack>
-                            </Flex>
-                          </Box>
-                        ))}
-                      </VStack>
-                    ) : (
-                      <Box textAlign="center" py={8}>
-                        <Text fontSize="4xl" mb={4}>👥</Text>
-                        <Text color="gray.400">No class members found</Text>
-                      </Box>
-                    )}
-                  </CardBody>
-                </Card>
-              </VStack>
-            </TabPanel>
+      <div className="max-w-6xl mx-auto p-6">
+        {/* Tabs */}
+        <div className="flex space-x-1 bg-card rounded-lg p-1 mb-8 border border-gray-700">
+          {getTabs().map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex-1 py-3 px-4 rounded-md transition-all font-medium ${
+                activeTab === tab.id 
+                  ? 'bg-gradient-primary text-white shadow-lg' 
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
 
-            {/* Analytics Tab (Teachers only) */}
-            {user?.role === 'teacher' && (
-              <TabPanel p={0}>
-                <Card>
-                  <CardBody>
-                    <Text fontSize="xl" fontWeight="bold" color="white" mb={6}>
-                      📊 Class Analytics
-                    </Text>
-                    
-                    {analytics ? (
-                      <VStack spacing={6} align="stretch">
-                        <Grid templateColumns="repeat(auto-fit, minmax(200px, 1fr))" gap={6}>
-                          <GridItem textAlign="center" p={4} bg="gray.700" borderRadius="lg">
-                            <Text fontSize="2xl" fontWeight="bold" color="brand.500">
-                              {analytics.class_name}
-                            </Text>
-                            <Text fontSize="sm" color="gray.400">Class Name</Text>
-                          </GridItem>
-                          <GridItem textAlign="center" p={4} bg="gray.700" borderRadius="lg">
-                            <Text fontSize="2xl" fontWeight="bold" color="success">
-                              {analytics.total_students}
-                            </Text>
-                            <Text fontSize="sm" color="gray.400">Total Students</Text>
-                          </GridItem>
-                        </Grid>
+        {activeTab === 'habits' && (
+          <div>
+            {/* Header */}
+            <div className="flex justify-between items-center mb-8">
+              <div>
+                <h2 className="text-3xl font-bold text-white mb-2">Today's Habits</h2>
+                <p className="text-gray-400">Stay consistent, build your future</p>
+              </div>
+              <button
+                onClick={() => setShowAddForm(true)}
+                className="bg-gradient-primary text-white px-6 py-3 rounded-lg hover:opacity-90 transition-all flex items-center space-x-2 shadow-lg"
+              >
+                <span className="text-lg">+</span>
+                <span>Add Habit</span>
+              </button>
+            </div>
 
-                        <Box overflowX="auto">
-                          <Table variant="simple">
-                            <Thead>
-                              <Tr>
-                                <Th color="gray.400">Student</Th>
-                                <Th color="gray.400" isNumeric>Total Habits</Th>
-                                <Th color="gray.400" isNumeric>Active Habits</Th>
-                                <Th color="gray.400" isNumeric>Best Streak</Th>
-                                <Th color="gray.400" isNumeric>Avg. Success</Th>
-                                <Th color="gray.400">Last Activity</Th>
-                              </Tr>
-                            </Thead>
-                            <Tbody>
-                              {analytics.analytics.map((student) => (
-                                <Tr key={student.student_email}>
-                                  <Td>
-                                    <VStack align="start" spacing={1}>
-                                      <Text fontWeight="semibold" color="white">
-                                        {student.student_name}
-                                      </Text>
-                                      <Text fontSize="sm" color="gray.400">
-                                        {student.student_email}
-                                      </Text>
-                                    </VStack>
-                                  </Td>
-                                  <Td isNumeric>
-                                    <Text fontWeight="semibold" color="white">
-                                      {student.total_habits}
-                                    </Text>
-                                  </Td>
-                                  <Td isNumeric>
-                                    <Badge
-                                      colorScheme={student.active_habits > 0 ? "green" : "gray"}
-                                    >
-                                      {student.active_habits}
-                                    </Badge>
-                                  </Td>
-                                  <Td isNumeric>
-                                    <HStack justify="flex-end">
-                                      <Text fontSize="lg">🔥</Text>
-                                      <Text fontWeight="bold" color="missed">
-                                        {student.best_current_streak}
-                                      </Text>
-                                    </HStack>
-                                  </Td>
-                                  <Td isNumeric>
-                                    <Text fontWeight="semibold" color="brand.500">
-                                      {student.average_completion_rate}%
-                                    </Text>
-                                  </Td>
-                                  <Td>
-                                    <Text fontSize="sm" color="gray.400">
-                                      {student.last_activity 
-                                        ? new Date(student.last_activity).toLocaleDateString()
-                                        : 'Never'
-                                      }
-                                    </Text>
-                                  </Td>
-                                </Tr>
-                              ))}
-                            </Tbody>
-                          </Table>
-                        </Box>
+            {/* Single-column habit list */}
+            <div className="max-w-lg mx-auto space-y-4">
+              {habits.map((habitData) => (
+                <HabitCard
+                  key={habitData.habit.id}
+                  habitData={habitData}
+                  onToggle={toggleHabit}
+                />
+              ))}
+              
+              {habits.length === 0 && (
+                <div className="bg-card rounded-xl p-12 text-center border border-gray-700">
+                  <div className="text-6xl mb-4">🎯</div>
+                  <h3 className="text-xl font-semibold text-white mb-2">No habits yet</h3>
+                  <p className="text-gray-400 mb-6">Start building your daily routine!</p>
+                  <button
+                    onClick={() => setShowAddForm(true)}
+                    className="bg-gradient-primary text-white px-6 py-3 rounded-lg hover:opacity-90 transition-all"
+                  >
+                    Add Your First Habit
+                  </button>
+                </div>
+              )}
+            </div>
 
-                        {analytics.analytics.length === 0 && (
-                          <Box textAlign="center" py={8}>
-                            <Text fontSize="4xl" mb={4}>👥</Text>
-                            <Text color="gray.400">No students in this class yet</Text>
-                          </Box>
-                        )}
-                      </VStack>
-                    ) : (
-                      <Box textAlign="center" py={8}>
-                        <Text fontSize="4xl" mb={4}>📈</Text>
-                        <Text color="gray.400">Loading analytics...</Text>
-                      </Box>
-                    )}
-                  </CardBody>
-                </Card>
-              </TabPanel>
+            {/* Add Habit Modal */}
+            <AddHabitModal
+              isOpen={showAddForm}
+              onClose={() => setShowAddForm(false)}
+              onHabitAdded={() => {
+                setShowAddForm(false);
+                fetchHabits();
+              }}
+            />
+          </div>
+        )}
+
+        {activeTab === 'class' && (
+          <div className="space-y-6">
+            {/* Class Info */}
+            {classInfo && (
+              <div className="bg-card rounded-xl p-6 border border-gray-700">
+                <h3 className="text-xl font-bold text-white mb-4">📚 Class Overview</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="text-center p-4 bg-gray-700 rounded-lg">
+                    <div className="text-2xl font-bold text-brand-500">{classInfo.class_name}</div>
+                    <div className="text-sm text-gray-400">Class Name</div>
+                  </div>
+                  <div className="text-center p-4 bg-gray-700 rounded-lg">
+                    <div className="text-2xl font-bold text-success">{classInfo.teacher_name}</div>
+                    <div className="text-sm text-gray-400">Teacher</div>
+                  </div>
+                  <div className="text-center p-4 bg-gray-700 rounded-lg">
+                    <div className="text-2xl font-bold text-missed">{classInfo.student_count}</div>
+                    <div className="text-sm text-gray-400">Students</div>
+                  </div>
+                </div>
+              </div>
             )}
-          </TabPanels>
-        </Tabs>
-      </Container>
 
-      <AddHabitModal
-        isOpen={isOpen}
-        onClose={onClose}
-        onHabitAdded={handleHabitAdded}
-      />
-    </Box>
+            {/* Class Leaderboard */}
+            <div className="bg-card rounded-xl p-6 border border-gray-700">
+              <h3 className="text-xl font-bold text-white mb-6">🏆 Class Leaderboard</h3>
+              {classData.length > 0 ? (
+                <div className="space-y-3">
+                  {classData.map((member, index) => (
+                    <div key={member.name} className="flex items-center justify-between p-4 bg-gray-700 rounded-lg">
+                      <div className="flex items-center space-x-4">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold ${
+                          index === 0 ? 'bg-yellow-500' : 
+                          index === 1 ? 'bg-gray-400' : 
+                          index === 2 ? 'bg-orange-500' : 'bg-gray-600'
+                        }`}>
+                          {index + 1}
+                        </div>
+                        <div>
+                          <div className="font-semibold text-white flex items-center space-x-2">
+                            <span>{member.name}</span>
+                            {member.role === 'teacher' && (
+                              <span className="text-xs bg-purple-900 text-purple-200 px-2 py-1 rounded-full">
+                                Teacher
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-sm text-gray-400">
+                            {member.total_habits} habits • {member.completion_rate}% success
+                          </div>
+                          <div className="text-xs text-gray-500">{member.recent_activity}</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <span className="text-xl">🔥</span>
+                        <span className="font-bold text-missed text-lg">{member.current_best_streak}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <div className="text-4xl mb-4">👥</div>
+                  <p className="text-gray-400">No class members found</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'analytics' && user?.role === 'teacher' && (
+          <div className="bg-card rounded-xl p-6 border border-gray-700">
+            <h3 className="text-xl font-bold text-white mb-6">📊 Class Analytics</h3>
+            
+            {analytics ? (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="text-center p-4 bg-gray-700 rounded-lg">
+                    <div className="text-2xl font-bold text-brand-500">{analytics.class_name}</div>
+                    <div className="text-sm text-gray-400">Class Name</div>
+                  </div>
+                  <div className="text-center p-4 bg-gray-700 rounded-lg">
+                    <div className="text-2xl font-bold text-success">{analytics.total_students}</div>
+                    <div className="text-sm text-gray-400">Total Students</div>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full table-auto">
+                    <thead>
+                      <tr className="border-b border-gray-600">
+                        <th className="text-left py-3 px-2 text-gray-300">Student</th>
+                        <th className="text-center py-3 px-2 text-gray-300">Habits</th>
+                        <th className="text-center py-3 px-2 text-gray-300">Active</th>
+                        <th className="text-center py-3 px-2 text-gray-300">Best Streak</th>
+                        <th className="text-center py-3 px-2 text-gray-300">Success Rate</th>
+                        <th className="text-center py-3 px-2 text-gray-300">Last Activity</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {analytics.analytics.map((student, index) => (
+                        <tr key={student.student_email} className={index % 2 === 0 ? 'bg-gray-700 bg-opacity-30' : ''}>
+                          <td className="py-3 px-2">
+                            <div>
+                              <div className="font-semibold text-white">{student.student_name}</div>
+                              <div className="text-sm text-gray-400">{student.student_email}</div>
+                            </div>
+                          </td>
+                          <td className="text-center py-3 px-2 font-semibold text-white">{student.total_habits}</td>
+                          <td className="text-center py-3 px-2">
+                            <span className={`px-2 py-1 rounded-full text-sm ${
+                              student.active_habits > 0 ? 'bg-green-900 text-green-200' : 'bg-gray-800 text-gray-400'
+                            }`}>
+                              {student.active_habits}
+                            </span>
+                          </td>
+                          <td className="text-center py-3 px-2">
+                            <div className="flex items-center justify-center space-x-1">
+                              <span className="text-lg">🔥</span>
+                              <span className="font-bold text-missed">{student.best_current_streak}</span>
+                            </div>
+                          </td>
+                          <td className="text-center py-3 px-2 font-semibold text-brand-500">
+                            {student.average_completion_rate}%
+                          </td>
+                          <td className="text-center py-3 px-2 text-sm text-gray-400">
+                            {student.last_activity ? new Date(student.last_activity).toLocaleDateString() : 'Never'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {analytics.analytics.length === 0 && (
+                  <div className="text-center py-8">
+                    <div className="text-4xl mb-4">👥</div>
+                    <p className="text-gray-400">No students in this class yet</p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <div className="text-4xl mb-4">📈</div>
+                <p className="text-gray-400">Loading analytics...</p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
   );
 };
 
@@ -1026,14 +714,9 @@ function App() {
   const { token } = useAuth();
   
   return (
-    <>
-      <ColorModeScript initialColorMode="dark" />
-      <ChakraProvider theme={theme}>
-        <Box minH="100vh" bg="surface">
-          {token ? <Dashboard /> : <AuthForm />}
-        </Box>
-      </ChakraProvider>
-    </>
+    <div className="App font-inter">
+      {token ? <Dashboard /> : <AuthForm />}
+    </div>
   );
 }
 
