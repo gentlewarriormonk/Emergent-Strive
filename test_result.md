@@ -264,6 +264,18 @@ backend:
         agent: "testing"
         comment: "✅ PASS: DATABASE OPERATIONS VERIFIED: MongoDB operations working correctly for class-based system. Data persistence verified across users, habits, logs, classes, and stats collections. Extended testing with multiple users shows proper data handling."
 
+  - task: "Add Habit API Hotfix"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ PASS: HOTFIX VERIFIED: Add Habit API hotfix changes working perfectly. All 12 tests passed (100% success rate). POST /habits accepts new field names (name, repeats, startDate), returns 201 status code, correctly maps fields (name→title, repeats→frequency, startDate→start_date), includes recent_logs array in response, initializes stats with zero values, defaults startDate to today when not provided, supports custom repeats option, and removes old field names from response. All hotfix requirements fully implemented and functional."
+
 frontend:
   # Frontend testing not performed by testing agent as per instructions
 
