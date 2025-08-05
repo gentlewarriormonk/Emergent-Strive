@@ -392,6 +392,9 @@ const Dashboard = () => {
     fetchHabits();
     fetchClassData();
     fetchClassInfo();
+    fetchUserStats();
+    fetchCrewData();
+    fetchQuests();
     if (user?.role === 'teacher') {
       fetchAnalytics();
     }
