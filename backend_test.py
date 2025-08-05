@@ -1091,6 +1091,9 @@ class ClassBasedHabitTrackerTester:
         # Data Validation
         self.test_data_validation()
         
+        # Gamification Layer Tests
+        self.run_gamification_tests()
+        
         # Print summary
         self.print_summary()
     
