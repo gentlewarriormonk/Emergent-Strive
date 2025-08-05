@@ -40,8 +40,8 @@ import {
   ModalBody,
   ModalCloseButton,
   Circle,
-  extendTheme,
 } from "@chakra-ui/react";
+import { extendTheme } from "@chakra-ui/react";
 import { AddIcon, CheckIcon } from "@chakra-ui/icons";
 import axios from "axios";
 
