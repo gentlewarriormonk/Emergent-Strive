@@ -274,7 +274,9 @@ const AddHabitModal = ({ isOpen, onClose, onHabitAdded }) => {
     name: '',
     repeats: 'daily',
     startDate: new Date().toISOString().split('T')[0],
+    custom_days: []
   });
+  const [showCustomModal, setShowCustomModal] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
