@@ -629,6 +629,8 @@ const Dashboard = () => {
   const [quests, setQuests] = useState([]);
   const [showCreateQuest, setShowCreateQuest] = useState(false);
   const [toast, setToast] = useState(null);
+  const [crewManagement, setCrewManagement] = useState({ crews: [], unassigned_students: [] });
+  const [showCreateCrew, setShowCreateCrew] = useState(false);
   const { user, logout } = useAuth();
 
   useEffect(() => {
