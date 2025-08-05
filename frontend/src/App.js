@@ -1059,6 +1059,112 @@ const Dashboard = () => {
           </div>
         )}
 
+        {activeTab === 'crews' && user?.role === 'teacher' && (
+          <div className="space-y-6">
+            {/* Crew Management Header */}
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-3xl font-bold text-white mb-2">Manage Crews</h2>
+                <p className="text-gray-400">Organize students into crews of up to 4 members</p>
+              </div>
+              <button
+                onClick={() => setShowCreateCrew(true)}
+                className="bg-gradient-primary text-white px-6 py-3 rounded-lg hover:opacity-90 transition-all flex items-center space-x-2 shadow-lg"
+              >
+                <span className="text-lg">+</span>
+                <span>Create Crew</span>
+              </button>
+            </div>
+
+            {/* Unassigned Students */}
+            {crewManagement.unassigned_students.length > 0 && (
+              <div className="bg-card rounded-xl p-6 border border-gray-700">
+                <h3 className="text-lg font-bold text-white mb-4">👤 Unassigned Students</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {crewManagement.unassigned_students.map((student) => (
+                    <div
+                      key={student.id}
+                      className="bg-gray-700 rounded-lg p-4 flex justify-between items-center"
+                    >
+                      <span className="text-white font-medium">{student.name}</span>
+                      <select
+                        onChange={(e) => {
+                          if (e.target.value) {
+                            assignStudentToCrew(student.id, e.target.value);
+                            e.target.value = '';
+                          }
+                        }}
+                        className="bg-gray-600 text-white text-sm px-2 py-1 rounded border border-gray-500"
+                      >
+                        <option value="">Assign to...</option>
+                        {crewManagement.crews.filter(crew => crew.member_count < 4).map((crew) => (
+                          <option key={crew.id} value={crew.id}>
+                            {crew.name} ({crew.member_count}/4)
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Existing Crews */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {crewManagement.crews.map((crew) => (
+                <div key={crew.id} className="bg-card rounded-xl p-6 border border-gray-700">
+                  <div className="flex justify-between items-center mb-4">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-lg">👥</span>
+                      <h3 className="text-lg font-bold text-white">{crew.name}</h3>
+                      <span className="text-sm text-gray-400">({crew.member_count}/4)</span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <span className="text-lg">🔥</span>
+                      <span className="font-bold text-missed text-lg">{crew.crew_streak}</span>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    {crew.members.map((member) => (
+                      <div key={member.id} className="flex justify-between items-center bg-gray-700 rounded-lg p-3">
+                        <span className="text-white">{member.name}</span>
+                        <button
+                          onClick={() => assignStudentToCrew(member.id, '')}
+                          className="text-gray-400 hover:text-red-400 text-sm"
+                          title="Remove from crew"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                    
+                    {crew.member_count === 0 && (
+                      <div className="text-center py-4 text-gray-400">
+                        No members assigned yet
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {crewManagement.crews.length === 0 && (
+              <div className="bg-card rounded-xl p-12 text-center border border-gray-700">
+                <div className="text-6xl mb-4">👥</div>
+                <h3 className="text-xl font-semibold text-white mb-2">No crews created yet</h3>
+                <p className="text-gray-400 mb-6">Create crews to organize your students into collaborative groups</p>
+                <button
+                  onClick={() => setShowCreateCrew(true)}
+                  className="bg-gradient-primary text-white px-6 py-3 rounded-lg hover:opacity-90 transition-all"
+                >
+                  Create Your First Crew
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
         {activeTab === 'class' && (
           <div className="space-y-6">
             {/* Class Info */}
