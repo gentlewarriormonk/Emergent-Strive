@@ -521,28 +521,30 @@ const Dashboard = () => {
             </div>
 
             {/* Single-column habit list */}
-            <div className="max-w-lg mx-auto space-y-4">
-              {habits.map((habitData) => (
-                <HabitCard
-                  key={habitData.habit.id}
-                  habitData={habitData}
-                  onToggle={toggleHabit}
-                />
-              ))}
-              
-              {habits.length === 0 && (
-                <div className="bg-card rounded-xl p-12 text-center border border-gray-700">
-                  <div className="text-6xl mb-4">🎯</div>
-                  <h3 className="text-xl font-semibold text-white mb-2">No habits yet</h3>
-                  <p className="text-gray-400 mb-6">Start building your daily routine!</p>
-                  <button
-                    onClick={() => setShowAddForm(true)}
-                    className="bg-gradient-primary text-white px-6 py-3 rounded-lg hover:opacity-90 transition-all"
-                  >
-                    Add Your First Habit
-                  </button>
-                </div>
-              )}
+            <div className="w-full max-w-lg mx-auto">
+              <div className="space-y-4">
+                {habits.map((habitData) => (
+                  <HabitCard
+                    key={habitData.habit.id}
+                    habitData={habitData}
+                    onToggle={toggleHabit}
+                  />
+                ))}
+                
+                {habits.length === 0 && (
+                  <div className="bg-card rounded-xl p-12 text-center border border-gray-700 max-w-lg mx-auto">
+                    <div className="text-6xl mb-4">🎯</div>
+                    <h3 className="text-xl font-semibold text-white mb-2">No habits yet</h3>
+                    <p className="text-gray-400 mb-6">Start building your daily routine!</p>
+                    <button
+                      onClick={() => setShowAddForm(true)}
+                      className="bg-gradient-primary text-white px-6 py-3 rounded-lg hover:opacity-90 transition-all"
+                    >
+                      Add Your First Habit
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Add Habit Modal */}
