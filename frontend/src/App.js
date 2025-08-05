@@ -517,7 +517,8 @@ const Dashboard = () => {
   const getTabs = () => {
     const tabs = [
       { id: 'habits', label: 'My Habits' },
-      { id: 'class', label: 'My Class' }
+      { id: 'class', label: 'My Class' },
+      { id: 'quests', label: 'Quests' }
     ];
     
     if (user?.role === 'teacher') {
