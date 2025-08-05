@@ -11,7 +11,7 @@ from datetime import date, datetime, timedelta
 import time
 
 # Get backend URL from frontend env
-BACKEND_URL = "https://e1775d52-63b1-4e94-ab13-bc0364a8e8b7.preview.emergentagent.com/api"
+BACKEND_URL = "https://eb2ef1f6-3972-46c8-a2c1-ba9cd83a94cf.preview.emergentagent.com/api"
 
 class ClassBasedHabitTrackerTester:
     def __init__(self):
