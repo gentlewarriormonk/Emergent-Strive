@@ -335,13 +335,26 @@ const AddHabitModal = ({ isOpen, onClose, onHabitAdded }) => {
             <label className="block text-sm font-medium text-gray-300 mb-2">Repeats</label>
             <select
               value={formData.repeats}
-              onChange={(e) => setFormData({ ...formData, repeats: e.target.value })}
+              onChange={(e) => {
+                const value = e.target.value;
+                setFormData({ ...formData, repeats: value });
+                if (value === 'custom') {
+                  setShowCustomModal(true);
+                }
+              }}
               className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-brand-500 focus:border-transparent"
             >
               <option value="daily">Daily</option>
               <option value="weekly">Weekly</option>
               <option value="custom">Custom</option>
             </select>
+            {formData.repeats === 'custom' && formData.custom_days.length > 0 && (
+              <div className="mt-2 text-sm text-gray-400">
+                Custom: {formData.custom_days.map(day => 
+                  ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][day]).join(', ')
+                }
+              </div>
+            )}
           </div>
 
           <div>
