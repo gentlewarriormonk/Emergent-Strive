@@ -487,6 +487,22 @@ async def register(user_data: UserCreate):
             {"$set": {"teacher_id": user_id}}
         )
     
+    # Create user stats for gamification
+    user_stats_doc = {
+        "id": str(uuid.uuid4()),
+        "user_id": user_id,
+        "xp": 0,
+        "level": 1,
+        "best_streak": 0,
+        "total_completions": 0,
+        "created_at": datetime.utcnow()
+    }
+    await db.user_stats.insert_one(user_stats_doc)
+    
+    # Auto-assign students to crews
+    if user_data.role == "student" and class_id:
+        await auto_assign_to_crew(user_id, class_id)
+    
     token = create_access_token(user_id)
     return {"token": token, "user": User(**user_doc)}
 
