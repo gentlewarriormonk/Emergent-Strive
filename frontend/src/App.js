@@ -271,28 +271,28 @@ const HabitCard = ({ habitData, onToggle }) => {
 
 const AddHabitModal = ({ isOpen, onClose, onHabitAdded }) => {
   const [formData, setFormData] = useState({
-    title: '',
-    frequency: 'daily',
-    start_date: new Date().toISOString().split('T')[0],
+    name: '',
+    repeats: 'daily',
+    startDate: new Date().toISOString().split('T')[0],
   });
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.title.trim()) {
+    if (!formData.name.trim()) {
       alert('Please enter a habit name');
       return;
     }
 
     setLoading(true);
     try {
-      await axios.post(`${API}/habits`, formData);
+      const response = await axios.post(`${API}/habits`, formData);
       onHabitAdded();
       onClose();
       setFormData({
-        title: '',
-        frequency: 'daily',
-        start_date: new Date().toISOString().split('T')[0],
+        name: '',
+        repeats: 'daily',
+        startDate: new Date().toISOString().split('T')[0],
       });
     } catch (error) {
       alert('Failed to create habit');
@@ -322,8 +322,8 @@ const AddHabitModal = ({ isOpen, onClose, onHabitAdded }) => {
             <input
               type="text"
               placeholder="e.g., Read 10 pages"
-              value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-brand-500 focus:border-transparent"
               required
             />
@@ -332,12 +332,13 @@ const AddHabitModal = ({ isOpen, onClose, onHabitAdded }) => {
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">Repeats</label>
             <select
-              value={formData.frequency}
-              onChange={(e) => setFormData({ ...formData, frequency: e.target.value })}
+              value={formData.repeats}
+              onChange={(e) => setFormData({ ...formData, repeats: e.target.value })}
               className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-brand-500 focus:border-transparent"
             >
               <option value="daily">Daily</option>
               <option value="weekly">Weekly</option>
+              <option value="custom">Custom</option>
             </select>
           </div>
 
@@ -345,8 +346,8 @@ const AddHabitModal = ({ isOpen, onClose, onHabitAdded }) => {
             <label className="block text-sm font-medium text-gray-300 mb-2">Start date (optional)</label>
             <input
               type="date"
-              value={formData.start_date}
-              onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+              value={formData.startDate}
+              onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
               className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-brand-500 focus:border-transparent"
             />
           </div>
