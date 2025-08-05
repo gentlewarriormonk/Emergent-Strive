@@ -20,13 +20,21 @@ class ClassBasedHabitTrackerTester:
         self.test_tokens = {}
         self.test_habits = {}
         self.test_classes = {}
+        self.test_crews = {}
+        self.test_quests = {}
         self.test_results = {
             "authentication": {"passed": 0, "failed": 0, "details": []},
             "class_system": {"passed": 0, "failed": 0, "details": []},
             "habit_management": {"passed": 0, "failed": 0, "details": []},
             "class_features": {"passed": 0, "failed": 0, "details": []},
             "authorization": {"passed": 0, "failed": 0, "details": []},
-            "data_validation": {"passed": 0, "failed": 0, "details": []}
+            "data_validation": {"passed": 0, "failed": 0, "details": []},
+            "gamification_xp": {"passed": 0, "failed": 0, "details": []},
+            "gamification_crews": {"passed": 0, "failed": 0, "details": []},
+            "gamification_quests": {"passed": 0, "failed": 0, "details": []},
+            "gamification_rewards": {"passed": 0, "failed": 0, "details": []},
+            "gamification_endpoints": {"passed": 0, "failed": 0, "details": []},
+            "csv_export": {"passed": 0, "failed": 0, "details": []}
         }
     
     def log_result(self, category, test_name, passed, details=""):
