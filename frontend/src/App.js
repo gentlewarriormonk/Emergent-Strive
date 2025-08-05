@@ -667,6 +667,16 @@ const Dashboard = () => {
                 fetchHabits();
               }}
             />
+
+            {/* Create Quest Modal */}
+            {showCreateQuest && <CreateQuestModal
+              isOpen={showCreateQuest}
+              onClose={() => setShowCreateQuest(false)}
+              onQuestCreated={() => {
+                setShowCreateQuest(false);
+                fetchQuests();
+              }}
+            />}
           </div>
         )}
 
