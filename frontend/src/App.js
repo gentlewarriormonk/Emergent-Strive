@@ -782,6 +782,29 @@ const Dashboard = () => {
     }
   };
 
+  const createCrew = async (crewName) => {
+    try {
+      await axios.post(`${API}/crews/create`, { name: crewName });
+      fetchCrewManagement();
+      showToast('Crew created successfully!', 'success');
+    } catch (error) {
+      console.error('Error creating crew:', error);
+      showToast('Failed to create crew', 'error');
+    }
+  };
+
+  const assignStudentToCrew = async (studentId, crewId) => {
+    try {
+      await axios.post(`${API}/crews/assign`, { student_id: studentId, crew_id: crewId });
+      fetchCrewManagement();
+      fetchCrewData(); // Refresh user's crew data if they're affected
+      showToast('Student assigned successfully!', 'success');
+    } catch (error) {
+      console.error('Error assigning student:', error);
+      showToast(error.response?.data?.detail || 'Failed to assign student', 'error');
+    }
+  };
+
   const getTabs = () => {
     const tabs = [
       { id: 'habits', label: 'My Habits' },
