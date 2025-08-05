@@ -438,6 +438,34 @@ const Dashboard = () => {
     }
   };
 
+  const fetchUserStats = async () => {
+    try {
+      const response = await axios.get(`${API}/stats/me`);
+      setUserStats(response.data);
+    } catch (error) {
+      console.error('Error fetching user stats:', error);
+    }
+  };
+
+  const fetchCrewData = async () => {
+    try {
+      const response = await axios.get(`${API}/crews/me`);
+      setCrewData(response.data);
+    } catch (error) {
+      console.error('Error fetching crew data:', error);
+      // Don't set error state, just handle gracefully
+    }
+  };
+
+  const fetchQuests = async () => {
+    try {
+      const response = await axios.get(`${API}/quests`);
+      setQuests(response.data);
+    } catch (error) {
+      console.error('Error fetching quests:', error);
+    }
+  };
+
   const toggleHabit = async (habitId, completed) => {
     try {
       await axios.post(`${API}/habits/${habitId}/log`, {
