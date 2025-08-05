@@ -241,6 +241,135 @@ async def calculate_streak(habit_id: str) -> tuple:
     
     return current_streak, best_streak
 
+# Gamification helper functions
+def calculate_level_from_xp(xp: int) -> int:
+    """Calculate level from XP using formula: threshold = 10 * level^1.5"""
+    level = 1
+    while xp >= 10 * (level ** 1.5):
+        level += 1
+    return level - 1 if level > 1 else 1
+
+def get_xp_for_level(level: int) -> int:
+    """Get XP threshold for a given level"""
+    return int(10 * (level ** 1.5))
+
+async def award_xp(user_id: str, xp_amount: int, habit_weight: int = 1):
+    """Award XP to user and update level if threshold is crossed"""
+    # Get or create user stats
+    user_stats = await db.user_stats.find_one({"user_id": user_id})
+    if not user_stats:
+        user_stats = {
+            "id": str(uuid.uuid4()),
+            "user_id": user_id,
+            "xp": 0,
+            "level": 1,
+            "best_streak": 0,
+            "total_completions": 0,
+            "created_at": datetime.utcnow()
+        }
+        await db.user_stats.insert_one(user_stats)
+    
+    # Calculate new XP and level
+    new_xp = user_stats["xp"] + (xp_amount * habit_weight)
+    new_level = calculate_level_from_xp(new_xp)
+    
+    # Update user stats
+    await db.user_stats.update_one(
+        {"user_id": user_id},
+        {
+            "$set": {
+                "xp": new_xp,
+                "level": new_level,
+                "total_completions": user_stats["total_completions"] + 1
+            }
+        }
+    )
+    
+    return new_level > user_stats["level"]  # Returns True if level increased
+
+async def auto_assign_to_crew(user_id: str, class_id: str):
+    """Auto-assign student to crew of 4, create new crew if needed"""
+    # Check if user is already in a crew
+    existing_membership = await db.crew_members.find_one({"user_id": user_id})
+    if existing_membership:
+        return
+    
+    # Find crews in the class with less than 4 members
+    crews = await db.crews.find({"class_id": class_id}).to_list(1000)
+    
+    target_crew = None
+    for crew in crews:
+        member_count = await db.crew_members.count_documents({"crew_id": crew["id"]})
+        if member_count < 4:
+            target_crew = crew
+            break
+    
+    # Create new crew if none available
+    if not target_crew:
+        crew_number = len(crews) + 1
+        target_crew = {
+            "id": str(uuid.uuid4()),
+            "class_id": class_id,
+            "name": f"Squad {crew_number}",
+            "crew_streak": 0,
+            "created_at": datetime.utcnow()
+        }
+        await db.crews.insert_one(target_crew)
+    
+    # Add user to crew
+    crew_member = {
+        "id": str(uuid.uuid4()),
+        "crew_id": target_crew["id"],
+        "user_id": user_id,
+        "joined_at": datetime.utcnow()
+    }
+    await db.crew_members.insert_one(crew_member)
+
+async def calculate_crew_streak(crew_id: str) -> int:
+    """Calculate crew streak as MIN of all members' current streaks"""
+    crew_members = await db.crew_members.find({"crew_id": crew_id}).to_list(10)
+    if not crew_members:
+        return 0
+    
+    min_streak = float('inf')
+    
+    for member in crew_members:
+        # Get member's best current streak
+        user_habits = await db.habits.find({"user_id": member["user_id"]}).to_list(100)
+        member_best_streak = 0
+        
+        for habit in user_habits:
+            stats = await db.habit_stats.find_one({"habit_id": habit["id"]})
+            if stats:
+                member_best_streak = max(member_best_streak, stats["current_streak"])
+        
+        min_streak = min(min_streak, member_best_streak)
+    
+    return int(min_streak) if min_streak != float('inf') else 0
+
+async def check_and_award_streak_rewards(user_id: str, new_streak: int):
+    """Check if user hit milestone streak and award rewards"""
+    milestones = [7, 14, 30]
+    
+    for milestone in milestones:
+        if new_streak == milestone:
+            # Check if reward already exists
+            existing_reward = await db.reward_items.find_one({
+                "user_id": user_id,
+                "type": "crate",
+                "label": f"{milestone}-Day Streak Crate"
+            })
+            
+            if not existing_reward:
+                reward = {
+                    "id": str(uuid.uuid4()),
+                    "user_id": user_id,
+                    "type": "crate",
+                    "label": f"{milestone}-Day Streak Crate",
+                    "awarded_at": datetime.utcnow()
+                }
+                await db.reward_items.insert_one(reward)
+
 # Routes
 @api_router.post("/auth/register")
 async def register(user_data: UserCreate):
