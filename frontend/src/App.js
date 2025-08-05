@@ -157,6 +157,270 @@ const AuthProvider = ({ children }) => {
 
 const useAuth = () => useContext(AuthContext);
 
+// HabitCard Component
+const HabitCard = ({ habitData, onToggle }) => {
+  const { habit, today_completed, stats, recent_logs = [] } = habitData;
+  
+  // Generate last 7 days status
+  const getLast7DaysStatus = () => {
+    const days = [];
+    const today = new Date();
+    
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(today.getDate() - i);
+      const dateStr = date.toISOString().split('T')[0];
+      
+      const log = recent_logs.find(l => l.date === dateStr);
+      const isToday = i === 0;
+      
+      let status;
+      if (isToday) {
+        status = today_completed ? 'completed' : 'today';
+      } else if (log) {
+        status = log.completed ? 'completed' : 'missed';
+      } else {
+        // For dates before habit start date, show as future/neutral
+        const habitStartDate = new Date(habit.start_date);
+        status = date < habitStartDate ? 'future' : 'missed';
+      }
+      
+      days.push({ date: dateStr, status, isToday });
+    }
+    
+    return days;
+  };
+
+  const statusDots = getLast7DaysStatus();
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'completed':
+        return 'success';
+      case 'missed':
+        return 'missed';
+      case 'today':
+        return 'gray.400';
+      case 'future':
+        return 'gray.600';
+      default:
+        return 'gray.400';
+    }
+  };
+
+  return (
+    <Card>
+      <CardBody>
+        <Flex justify="space-between" align="start" mb={4}>
+          <VStack align="start" spacing={1} flex={1}>
+            <Text fontSize="lg" fontWeight="bold" color="white">
+              {habit.title}
+            </Text>
+            <HStack>
+              <Text fontSize="sm" color="gray.400">
+                🔥 {stats.current_streak} day streak
+              </Text>
+              <Text fontSize="sm" color="gray.400">
+                •
+              </Text>
+              <Text fontSize="sm" color="gray.400">
+                {Math.round(stats.percent_complete)}% completion rate
+              </Text>
+            </HStack>
+          </VStack>
+          
+          <Button
+            variant={today_completed ? 'primary' : 'secondary'}
+            size="sm"
+            onClick={() => onToggle(habit.id, today_completed)}
+            leftIcon={today_completed ? <CheckIcon /> : undefined}
+            minW="80px"
+          >
+            {today_completed ? 'Done' : 'Mark'}
+          </Button>
+        </Flex>
+
+        {/* 7-day status bar */}
+        <VStack align="start" spacing={2}>
+          <Text fontSize="xs" color="gray.500" fontWeight="medium">
+            LAST 7 DAYS
+          </Text>
+          <HStack spacing={2}>
+            {statusDots.map((day, index) => (
+              <Circle
+                key={day.date}
+                size="10px"
+                bg={getStatusColor(day.status)}
+                border={day.isToday ? "2px solid" : "none"}
+                borderColor={day.isToday ? "white" : "transparent"}
+              />
+            ))}
+          </HStack>
+        </VStack>
+      </CardBody>
+    </Card>
+  );
+};
+
+// AddHabitModal Component
+const AddHabitModal = ({ isOpen, onClose, onHabitAdded }) => {
+  const [formData, setFormData] = useState({
+    title: '',
+    frequency: 'daily',
+    start_date: new Date().toISOString().split('T')[0],
+  });
+  const [loading, setLoading] = useState(false);
+  const toast = useToast();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!formData.title.trim()) {
+      toast({
+        title: 'Error',
+        description: 'Please enter a habit name',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await axios.post(`${API}/habits`, formData);
+      toast({
+        title: 'Success',
+        description: 'Habit created successfully!',
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+      onHabitAdded();
+      onClose();
+      setFormData({
+        title: '',
+        frequency: 'daily',
+        start_date: new Date().toISOString().split('T')[0],
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to create habit',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} size="sm">
+      <ModalOverlay bg="blackAlpha.800" />
+      <ModalContent bg="card" maxW="400px">
+        <ModalHeader color="white">Add New Habit</ModalHeader>
+        <ModalCloseButton color="white" />
+        <ModalBody pb={6}>
+          <form onSubmit={handleSubmit}>
+            <VStack spacing={4}>
+              <FormControl>
+                <FormLabel color="gray.300" fontSize="sm" fontWeight="medium">
+                  Name
+                </FormLabel>
+                <Input
+                  placeholder="e.g., Read 10 pages"
+                  value={formData.title}
+                  onChange={(e) =>
+                    setFormData({ ...formData, title: e.target.value })
+                  }
+                  bg="gray.700"
+                  border="1px solid"
+                  borderColor="gray.600"
+                  color="white"
+                  _placeholder={{ color: 'gray.400' }}
+                  _focus={{
+                    borderColor: 'brand.500',
+                    boxShadow: '0 0 0 1px #00AEEF',
+                  }}
+                />
+              </FormControl>
+
+              <FormControl>
+                <FormLabel color="gray.300" fontSize="sm" fontWeight="medium">
+                  Repeats
+                </FormLabel>
+                <Select
+                  value={formData.frequency}
+                  onChange={(e) =>
+                    setFormData({ ...formData, frequency: e.target.value })
+                  }
+                  bg="gray.700"
+                  border="1px solid"
+                  borderColor="gray.600"
+                  color="white"
+                  _focus={{
+                    borderColor: 'brand.500',
+                    boxShadow: '0 0 0 1px #00AEEF',
+                  }}
+                >
+                  <option value="daily" style={{ backgroundColor: '#2D3748' }}>
+                    Daily
+                  </option>
+                  <option value="weekly" style={{ backgroundColor: '#2D3748' }}>
+                    Weekly
+                  </option>
+                </Select>
+              </FormControl>
+
+              <FormControl>
+                <FormLabel color="gray.300" fontSize="sm" fontWeight="medium">
+                  Start date (optional)
+                </FormLabel>
+                <Input
+                  type="date"
+                  value={formData.start_date}
+                  onChange={(e) =>
+                    setFormData({ ...formData, start_date: e.target.value })
+                  }
+                  bg="gray.700"
+                  border="1px solid"
+                  borderColor="gray.600"
+                  color="white"
+                  _focus={{
+                    borderColor: 'brand.500',
+                    boxShadow: '0 0 0 1px #00AEEF',
+                  }}
+                />
+              </FormControl>
+
+              <HStack w="full" spacing={3} pt={4}>
+                <Button
+                  variant="secondary"
+                  onClick={onClose}
+                  flex={1}
+                  isDisabled={loading}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="primary"
+                  type="submit"
+                  flex={1}
+                  isLoading={loading}
+                  loadingText="Creating..."
+                >
+                  Create Habit
+                </Button>
+              </HStack>
+            </VStack>
+          </form>
+        </ModalBody>
+      </ModalContent>
+    </Modal>
+  );
+};
+
 // Navbar Component
 const Navbar = () => {
   const { user, logout } = useAuth();
