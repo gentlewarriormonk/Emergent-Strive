@@ -978,6 +978,16 @@ const Dashboard = () => {
                 fetchQuests();
               }}
             />}
+
+            {/* Create Crew Modal */}
+            {showCreateCrew && <CreateCrewModal
+              isOpen={showCreateCrew}
+              onClose={() => setShowCreateCrew(false)}
+              onCrewCreated={() => {
+                setShowCreateCrew(false);
+                fetchCrewManagement();
+              }}
+            />}
           </div>
         )}
 
