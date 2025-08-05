@@ -607,6 +607,11 @@ const Dashboard = () => {
     }
   };
 
+  const showToast = (message, type = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
   const toggleHabit = async (habitId, completed) => {
     try {
       await axios.post(`${API}/habits/${habitId}/log`, {
@@ -616,8 +621,14 @@ const Dashboard = () => {
       fetchHabits();
       fetchClassData();
       fetchUserStats(); // Refresh XP after habit completion
+      
+      // Show success toast
+      if (!completed) {
+        showToast('Great job! +1 XP', 'success');
+      }
     } catch (error) {
       console.error('Error logging habit:', error);
+      showToast('Failed to log habit', 'error');
     }
   };
 
