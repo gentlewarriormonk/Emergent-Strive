@@ -499,10 +499,6 @@ async def register(user_data: UserCreate):
     }
     await db.user_stats.insert_one(user_stats_doc)
     
-    # Auto-assign students to crews
-    if user_data.role == "student" and class_id:
-        await auto_assign_to_crew(user_id, class_id)
-    
     token = create_access_token(user_id)
     return {"token": token, "user": User(**user_doc)}
 
