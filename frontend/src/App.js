@@ -670,6 +670,84 @@ const Dashboard = () => {
           </div>
         )}
 
+        {activeTab === 'quests' && (
+          <div className="space-y-6">
+            {/* Quest Header */}
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-3xl font-bold text-white mb-2">Active Quests</h2>
+                <p className="text-gray-400">Complete challenges to earn XP</p>
+              </div>
+              {user?.role === 'teacher' && (
+                <button
+                  onClick={() => setShowCreateQuest(true)}
+                  className="bg-gradient-primary text-white px-6 py-3 rounded-lg hover:opacity-90 transition-all flex items-center space-x-2 shadow-lg"
+                >
+                  <span className="text-lg">+</span>
+                  <span>Create Quest</span>
+                </button>
+              )}
+            </div>
+
+            {/* Quest List */}
+            <div className="w-full max-w-2xl mx-auto">
+              <div className="space-y-4">
+                {quests.map((questData) => (
+                  <div key={questData.quest.id} className="bg-card rounded-xl p-6 border border-gray-700">
+                    <div className="flex justify-between items-start mb-4">
+                      <div className="flex-1">
+                        <h3 className="text-lg font-semibold text-white mb-2">{questData.quest.title}</h3>
+                        <p className="text-gray-400 text-sm mb-3">{questData.quest.description}</p>
+                        <div className="flex items-center space-x-4 text-xs text-gray-500">
+                          <span>🎯 {questData.quest.xp_reward} XP reward</span>
+                          <span>•</span>
+                          <span>📅 Until {new Date(questData.quest.end_date).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+                      {user?.role === 'student' && (
+                        <button
+                          onClick={() => completeQuest(questData.quest.id)}
+                          disabled={questData.completed}
+                          className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                            questData.completed 
+                              ? 'bg-gray-700 text-gray-500 cursor-not-allowed' 
+                              : 'bg-gradient-primary text-white hover:opacity-90 shadow-lg'
+                          }`}
+                        >
+                          {questData.completed ? '✓ Completed' : 'Complete'}
+                        </button>
+                      )}
+                      {user?.role === 'teacher' && (
+                        <span className="px-3 py-1 bg-purple-900 text-purple-200 text-xs rounded-full">
+                          Teacher
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                
+                {quests.length === 0 && (
+                  <div className="bg-card rounded-xl p-12 text-center border border-gray-700 max-w-lg mx-auto">
+                    <div className="text-6xl mb-4">🎯</div>
+                    <h3 className="text-xl font-semibold text-white mb-2">No active quests</h3>
+                    <p className="text-gray-400 mb-6">
+                      {user?.role === 'teacher' ? 'Create a quest to challenge your students!' : 'Check back soon for new challenges!'}
+                    </p>
+                    {user?.role === 'teacher' && (
+                      <button
+                        onClick={() => setShowCreateQuest(true)}
+                        className="bg-gradient-primary text-white px-6 py-3 rounded-lg hover:opacity-90 transition-all"
+                      >
+                        Create Your First Quest
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {activeTab === 'class' && (
           <div className="space-y-6">
             {/* Class Info */}
