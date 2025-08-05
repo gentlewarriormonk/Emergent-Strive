@@ -264,17 +264,89 @@ backend:
         agent: "testing"
         comment: "✅ PASS: DATABASE OPERATIONS VERIFIED: MongoDB operations working correctly for class-based system. Data persistence verified across users, habits, logs, classes, and stats collections. Extended testing with multiple users shows proper data handling."
 
-  - task: "Add Habit API Hotfix"
+  - task: "Gamification Backend - XP/Level System"
     implemented: true
-    working: true
+    working: "unknown"
     file: "backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
-      - working: true
-        agent: "testing"
-        comment: "✅ PASS: HOTFIX VERIFIED: Add Habit API hotfix changes working perfectly. All 12 tests passed (100% success rate). POST /habits accepts new field names (name, repeats, startDate), returns 201 status code, correctly maps fields (name→title, repeats→frequency, startDate→start_date), includes recent_logs array in response, initializes stats with zero values, defaults startDate to today when not provided, supports custom repeats option, and removes old field names from response. All hotfix requirements fully implemented and functional."
+      - working: "unknown"
+        agent: "main"
+        comment: "Implemented XP/level system with formula: threshold = 10 * level^1.5. Added XP awarding on habit completion (1 * habit.weight). Added level calculation and user_stats collection. Need to test XP calculation, level progression, and stats tracking."
+
+  - task: "Gamification Backend - Crew Auto-Assignment System"
+    implemented: true
+    working: "unknown"
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "unknown"
+        agent: "main"
+        comment: "Implemented crew auto-assignment for groups of 4 students. Added crews and crew_members collections. Auto-assign on student registration. Added crew streak calculation as MIN of all members' streaks. Need to test crew assignment, streak calculations, and /crews endpoints."
+
+  - task: "Gamification Backend - Quest System"
+    implemented: true
+    working: "unknown"
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "unknown"
+        agent: "main"
+        comment: "Implemented quest system - teachers create quests with XP rewards, students complete once. Added quests and quest_completions collections. Added /quests endpoints (POST, GET, POST /:id/complete). XP awarded on quest completion. Need to test quest creation, completion, XP awarding."
+
+  - task: "Gamification Backend - Nightly Cron Job"
+    implemented: true
+    working: "unknown"
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "unknown"
+        agent: "main"
+        comment: "Implemented APScheduler nightly cron at 02:00 UTC. Recomputes all habit stats, crew streaks, user best streaks, and awards milestone rewards (7,14,30 day streaks). Added reward_items collection. Need to test cron job execution and data recomputation."
+
+  - task: "Gamification Backend - Streak Reward System"
+    implemented: true
+    working: "unknown"
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "unknown"
+        agent: "main"
+        comment: "Implemented variable rewards for streak milestones (7, 14, 30 days). Awards 'crate' type rewards automatically. Integrated with habit logging and nightly cron. Need to test milestone detection and reward awarding."
+
+  - task: "Gamification Backend - New API Endpoints"
+    implemented: true
+    working: "unknown"
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "unknown"
+        agent: "main"
+        comment: "Added 6 new API endpoints: POST /crews/join, GET /crews/me, POST /quests, GET /quests, POST /quests/:id/complete, GET /stats/me, GET /classes/:id/export. All endpoints follow FastAPI patterns with proper authentication. Need to test all endpoints functionality."
+
+  - task: "CSV Export System"
+    implemented: true
+    working: "unknown"
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "unknown"
+        agent: "main"
+        comment: "Implemented CSV export with MongoDB aggregation pipeline. GET /classes/:id/export?range=30 returns text/csv with headers: student_name,habit_name,date,completed. Teacher-only access with proper authorization. Need to test CSV generation and download."
 
 frontend:
   # Frontend testing not performed by testing agent as per instructions
