@@ -644,6 +644,12 @@ async def log_habit(habit_id: str, log_data: HabitLogCreate, current_user: User 
         upsert=True
     )
     
+    # Award XP if habit was marked complete (not uncompleted)
+    if log_data.completed:
+        habit_weight = 1  # Default weight, could be expanded later
+        await award_xp(current_user.id, 1, habit_weight)
+        await check_and_award_streak_rewards(current_user.id, current_streak)
+    
     return HabitLog(**log_doc)
 
 @api_router.get("/classes/{class_id}/analytics")
