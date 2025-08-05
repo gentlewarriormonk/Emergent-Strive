@@ -793,15 +793,17 @@ const Dashboard = () => {
     }
   };
 
-  const assignStudentToCrew = async (studentId, crewId) => {
+  const removeStudentFromCrew = async (studentId) => {
     try {
-      await axios.post(`${API}/crews/assign`, { student_id: studentId, crew_id: crewId });
+      // For removing, we'll need to call a delete endpoint 
+      // For now, let's use a workaround by calling assign with no crew
+      const response = await axios.delete(`${API}/crews/members/${studentId}`);
       fetchCrewManagement();
-      fetchCrewData(); // Refresh user's crew data if they're affected
-      showToast('Student assigned successfully!', 'success');
+      fetchCrewData();
+      showToast('Student removed from crew', 'success');
     } catch (error) {
-      console.error('Error assigning student:', error);
-      showToast(error.response?.data?.detail || 'Failed to assign student', 'error');
+      console.error('Error removing student from crew:', error);
+      showToast('Failed to remove student', 'error');
     }
   };
 
