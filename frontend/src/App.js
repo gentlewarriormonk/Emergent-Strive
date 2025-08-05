@@ -712,6 +712,17 @@ const Dashboard = () => {
     }
   };
 
+  const fetchCrewManagement = async () => {
+    if (user?.role !== 'teacher') return;
+    
+    try {
+      const response = await axios.get(`${API}/crews/manage`);
+      setCrewManagement(response.data);
+    } catch (error) {
+      console.error('Error fetching crew management data:', error);
+    }
+  };
+
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
