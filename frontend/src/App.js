@@ -776,6 +776,7 @@ const Dashboard = () => {
     ];
     
     if (user?.role === 'teacher') {
+      tabs.push({ id: 'crews', label: 'Manage Crews' });
       tabs.push({ id: 'analytics', label: 'Analytics' });
     }
     
