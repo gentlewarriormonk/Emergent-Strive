@@ -1,6 +1,44 @@
 import React, { useState, useEffect, createContext, useContext } from "react";
-import "./App.css";
+import {
+  ChakraProvider,
+  ColorModeScript,
+  Box,
+  Flex,
+  Text,
+  Button,
+  VStack,
+  HStack,
+  Image,
+  Input,
+  Select,
+  FormControl,
+  FormLabel,
+  Card,
+  CardBody,
+  useDisclosure,
+  useToast,
+  Container,
+  Tabs,
+  TabList,
+  TabPanels,
+  Tab,
+  TabPanel,
+  Table,
+  Thead,
+  Tbody,
+  Tr,
+  Th,
+  Td,
+  Badge,
+  Divider,
+  Grid,
+  GridItem,
+} from "@chakra-ui/react";
+import { AddIcon } from "@chakra-ui/icons";
 import axios from "axios";
+import { theme } from "./theme";
+import HabitCard from "./components/HabitCard";
+import AddHabitModal from "./components/AddHabitModal";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -41,7 +79,41 @@ const AuthProvider = ({ children }) => {
 
 const useAuth = () => useContext(AuthContext);
 
-// Components
+// Navbar Component
+const Navbar = () => {
+  const { user, logout } = useAuth();
+
+  return (
+    <Box
+      bg="linear-gradient(135deg, #0D2B8E 0%, #00AEEF 100%)"
+      px={6}
+      py={4}
+      borderBottom="1px solid"
+      borderColor="gray.700"
+    >
+      <Container maxW="6xl">
+        <Flex justify="space-between" align="center">
+          <HStack spacing={3}>
+            <Image src="/strive-logo.svg" alt="Strive" w="40px" h="40px" />
+          </HStack>
+          
+          {user && (
+            <HStack spacing={4}>
+              <Text color="white" fontSize="sm">
+                Welcome, {user.name}
+              </Text>
+              <Button variant="secondary" size="sm" onClick={logout}>
+                Logout
+              </Button>
+            </HStack>
+          )}
+        </Flex>
+      </Container>
+    </Box>
+  );
+};
+
+// Auth Form Component
 const AuthForm = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({
@@ -53,6 +125,7 @@ const AuthForm = () => {
   });
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
+  const toast = useToast();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -67,115 +140,167 @@ const AuthForm = () => {
       const response = await axios.post(`${API}${endpoint}`, payload);
       login(response.data.user, response.data.token);
     } catch (error) {
-      alert(error.response?.data?.detail || 'Authentication failed');
+      toast({
+        title: 'Error',
+        description: error.response?.data?.detail || 'Authentication failed',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-600 via-blue-600 to-teal-500 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-800 mb-2">One Thing</h1>
-          <p className="text-gray-600">Track habits with your class</p>
-        </div>
-        
-        <div className="flex mb-6 bg-gray-100 rounded-lg p-1">
-          <button
-            className={`flex-1 py-2 px-4 rounded-md transition-all ${
-              isLogin ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500'
-            }`}
-            onClick={() => setIsLogin(true)}
-          >
-            Login
-          </button>
-          <button
-            className={`flex-1 py-2 px-4 rounded-md transition-all ${
-              !isLogin ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500'
-            }`}
-            onClick={() => setIsLogin(false)}
-          >
-            Sign Up
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {!isLogin && (
-            <input
-              type="text"
-              placeholder="Full Name"
-              value={formData.name}
-              onChange={(e) => setFormData({...formData, name: e.target.value})}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              required
-            />
-          )}
-          
-          <input
-            type="email"
-            placeholder="Email"
-            value={formData.email}
-            onChange={(e) => setFormData({...formData, email: e.target.value})}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            required
-          />
-          
-          <input
-            type="password"
-            placeholder="Password"
-            value={formData.password}
-            onChange={(e) => setFormData({...formData, password: e.target.value})}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            required
-          />
-
-          {!isLogin && (
-            <>
-              <select
-                value={formData.role}
-                onChange={(e) => setFormData({...formData, role: e.target.value})}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+    <Container maxW="md" py={20}>
+      <Card>
+        <CardBody p={8}>
+          <VStack spacing={6}>
+            <VStack spacing={2}>
+              <HStack spacing={3}>
+                <Image src="/strive-logo.svg" alt="Strive" w="48px" h="48px" />
+                <Text fontSize="3xl" fontWeight="bold" color="white">
+                  Strive
+                </Text>
+              </HStack>
+              <Text color="gray.400" textAlign="center">
+                Track habits with your class
+              </Text>
+            </VStack>
+            
+            <HStack w="full" bg="gray.700" p={1} borderRadius="lg">
+              <Button
+                variant={isLogin ? "primary" : "ghost"}
+                onClick={() => setIsLogin(true)}
+                flex={1}
+                size="sm"
               >
-                <option value="student">Student</option>
-                <option value="teacher">Teacher</option>
-              </select>
-              
-              <input
-                type="text"
-                placeholder={formData.role === 'teacher' ? 'Create Class Name' : 'Join Class Name'}
-                value={formData.class_name}
-                onChange={(e) => setFormData({...formData, class_name: e.target.value})}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                required
-              />
-              {formData.role === 'student' && (
-                <p className="text-sm text-gray-500">Ask your teacher for the exact class name</p>
-              )}
-            </>
-          )}
+                Login
+              </Button>
+              <Button
+                variant={!isLogin ? "primary" : "ghost"}
+                onClick={() => setIsLogin(false)}
+                flex={1}
+                size="sm"
+              >
+                Sign Up
+              </Button>
+            </HStack>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all disabled:opacity-50"
-          >
-            {loading ? 'Loading...' : (isLogin ? 'Login' : 'Sign Up')}
-          </button>
-        </form>
-      </div>
-    </div>
+            <form onSubmit={handleSubmit} style={{ width: '100%' }}>
+              <VStack spacing={4}>
+                {!isLogin && (
+                  <FormControl>
+                    <FormLabel color="gray.300">Full Name</FormLabel>
+                    <Input
+                      type="text"
+                      placeholder="Enter your name"
+                      value={formData.name}
+                      onChange={(e) => setFormData({...formData, name: e.target.value})}
+                      bg="gray.700"
+                      border="1px solid"
+                      borderColor="gray.600"
+                      required
+                    />
+                  </FormControl>
+                )}
+                
+                <FormControl>
+                  <FormLabel color="gray.300">Email</FormLabel>
+                  <Input
+                    type="email"
+                    placeholder="Enter your email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({...formData, email: e.target.value})}
+                    bg="gray.700"
+                    border="1px solid"
+                    borderColor="gray.600"
+                    required
+                  />
+                </FormControl>
+                
+                <FormControl>
+                  <FormLabel color="gray.300">Password</FormLabel>
+                  <Input
+                    type="password"
+                    placeholder="Enter your password"
+                    value={formData.password}
+                    onChange={(e) => setFormData({...formData, password: e.target.value})}
+                    bg="gray.700"
+                    border="1px solid"
+                    borderColor="gray.600"
+                    required
+                  />
+                </FormControl>
+
+                {!isLogin && (
+                  <>
+                    <FormControl>
+                      <FormLabel color="gray.300">Role</FormLabel>
+                      <Select
+                        value={formData.role}
+                        onChange={(e) => setFormData({...formData, role: e.target.value})}
+                        bg="gray.700"
+                        border="1px solid"
+                        borderColor="gray.600"
+                      >
+                        <option value="student">Student</option>
+                        <option value="teacher">Teacher</option>
+                      </Select>
+                    </FormControl>
+                    
+                    <FormControl>
+                      <FormLabel color="gray.300">
+                        {formData.role === 'teacher' ? 'Create Class Name' : 'Join Class Name'}
+                      </FormLabel>
+                      <Input
+                        type="text"
+                        placeholder={formData.role === 'teacher' ? 'Create class name' : 'Ask teacher for class name'}
+                        value={formData.class_name}
+                        onChange={(e) => setFormData({...formData, class_name: e.target.value})}
+                        bg="gray.700"
+                        border="1px solid"
+                        borderColor="gray.600"
+                        required
+                      />
+                      {formData.role === 'student' && (
+                        <Text fontSize="xs" color="gray.500" mt={1}>
+                          Ask your teacher for the exact class name
+                        </Text>
+                      )}
+                    </FormControl>
+                  </>
+                )}
+
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="lg"
+                  w="full"
+                  isLoading={loading}
+                  loadingText={isLogin ? 'Logging in...' : 'Signing up...'}
+                >
+                  {isLogin ? 'Login' : 'Sign Up'}
+                </Button>
+              </VStack>
+            </form>
+          </VStack>
+        </CardBody>
+      </Card>
+    </Container>
   );
 };
 
+// Dashboard Component
 const Dashboard = () => {
   const [habits, setHabits] = useState([]);
-  const [showAddForm, setShowAddForm] = useState(false);
   const [classData, setClassData] = useState([]);
   const [classInfo, setClassInfo] = useState(null);
   const [analytics, setAnalytics] = useState(null);
-  const [activeTab, setActiveTab] = useState('habits');
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  const toast = useToast();
 
   useEffect(() => {
     fetchHabits();
@@ -231,387 +356,327 @@ const Dashboard = () => {
         completed: !completed
       });
       fetchHabits();
-      fetchClassData(); // Refresh class data to show updated streaks
+      fetchClassData();
+      toast({
+        title: 'Success',
+        description: completed ? 'Habit unmarked' : 'Habit completed! 🔥',
+        status: 'success',
+        duration: 2000,
+        isClosable: true,
+      });
     } catch (error) {
-      console.error('Error logging habit:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update habit',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
     }
   };
 
-  const getTabs = () => {
-    const tabs = [
-      { id: 'habits', label: 'My Habits' },
-      { id: 'class', label: 'My Class' }
-    ];
-    
-    if (user?.role === 'teacher') {
-      tabs.push({ id: 'analytics', label: 'Analytics' });
-    }
-    
-    return tabs;
+  const handleHabitAdded = () => {
+    fetchHabits();
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white p-6">
-        <div className="max-w-4xl mx-auto flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold">One Thing</h1>
-            <p className="text-purple-100">
-              Welcome back, {user?.name}! 
-              {classInfo && <span className="ml-2">📚 {classInfo.class_name}</span>}
-            </p>
-          </div>
-          <button
-            onClick={logout}
-            className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg transition-all"
-          >
-            Logout
-          </button>
-        </div>
-      </div>
-
-      <div className="max-w-4xl mx-auto p-6">
-        {/* Tabs */}
-        <div className="flex space-x-1 bg-gray-200 rounded-lg p-1 mb-6">
-          {getTabs().map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 py-2 px-4 rounded-md transition-all ${
-                activeTab === tab.id ? 'bg-white shadow-sm text-blue-600' : 'text-gray-600'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {activeTab === 'habits' && (
-          <div>
-            {/* Add Habit Button */}
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-gray-800">Today's Habits</h2>
-              <button
-                onClick={() => setShowAddForm(true)}
-                className="bg-gradient-to-r from-green-500 to-teal-500 text-white px-6 py-2 rounded-lg hover:from-green-600 hover:to-teal-600 transition-all flex items-center space-x-2"
-              >
-                <span>+</span>
-                <span>Add Habit</span>
-              </button>
-            </div>
-
-            {/* Habits Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {habits.map((habitData) => (
-                <HabitCard
-                  key={habitData.habit.id}
-                  habitData={habitData}
-                  onToggle={toggleHabit}
-                />
-              ))}
-              
-              {habits.length === 0 && (
-                <div className="col-span-full text-center py-12">
-                  <div className="text-gray-400 text-6xl mb-4">🎯</div>
-                  <h3 className="text-xl font-semibold text-gray-600 mb-2">No habits yet</h3>
-                  <p className="text-gray-500">Start building your daily routine!</p>
-                </div>
-              )}
-            </div>
-
-            {/* Add Habit Modal */}
-            {showAddForm && (
-              <AddHabitModal
-                onClose={() => setShowAddForm(false)}
-                onAdd={() => {
-                  setShowAddForm(false);
-                  fetchHabits();
-                }}
-              />
-            )}
-          </div>
-        )}
-
-        {activeTab === 'class' && (
-          <ClassTab classData={classData} classInfo={classInfo} />
-        )}
-
-        {activeTab === 'analytics' && user?.role === 'teacher' && (
-          <AnalyticsTab analytics={analytics} />
-        )}
-      </div>
-    </div>
-  );
-};
-
-const HabitCard = ({ habitData, onToggle }) => {
-  const { habit, today_completed, stats } = habitData;
-  
-  return (
-    <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow">
-      <div className="flex justify-between items-start mb-4">
-        <h3 className="font-bold text-lg text-gray-800">{habit.title}</h3>
-        <button
-          onClick={() => onToggle(habit.id, today_completed)}
-          className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
-            today_completed 
-              ? 'bg-green-500 text-white' 
-              : 'border-2 border-gray-300 hover:border-green-500'
-          }`}
-        >
-          {today_completed && '✓'}
-        </button>
-      </div>
+    <Box>
+      <Navbar />
       
-      <div className="space-y-3">
-        <div className="flex justify-between items-center">
-          <span className="text-sm text-gray-600">Current Streak</span>
-          <div className="flex items-center space-x-1">
-            <span className="text-xl">🔥</span>
-            <span className="font-bold text-orange-600">{stats.current_streak}</span>
-          </div>
-        </div>
-        
-        <div className="flex justify-between items-center">
-          <span className="text-sm text-gray-600">Best Streak</span>
-          <div className="flex items-center space-x-1">
-            <span className="text-xl">🏆</span>
-            <span className="font-bold text-yellow-600">{stats.best_streak}</span>
-          </div>
-        </div>
-        
-        <div className="flex justify-between items-center">
-          <span className="text-sm text-gray-600">Success Rate</span>
-          <span className="font-bold text-blue-600">{Math.round(stats.percent_complete)}%</span>
-        </div>
-      </div>
-    </div>
-  );
-};
+      <Container maxW="6xl" py={8}>
+        <Tabs colorScheme="brand" variant="soft-rounded">
+          <TabList mb={8} bg="card" p={2} borderRadius="xl">
+            <Tab>My Habits</Tab>
+            <Tab>My Class</Tab>
+            {user?.role === 'teacher' && <Tab>Analytics</Tab>}
+          </TabList>
 
-const AddHabitModal = ({ onClose, onAdd }) => {
-  const [formData, setFormData] = useState({
-    title: '',
-    frequency: 'daily',
-    start_date: new Date().toISOString().split('T')[0]
-  });
+          <TabPanels>
+            {/* My Habits Tab */}
+            <TabPanel p={0}>
+              <VStack spacing={6} align="stretch">
+                <Flex justify="space-between" align="center">
+                  <VStack align="start" spacing={1}>
+                    <Text fontSize="2xl" fontWeight="bold" color="white">
+                      Today's Habits
+                    </Text>
+                    {classInfo && (
+                      <Text color="gray.400" fontSize="sm">
+                        📚 {classInfo.class_name}
+                      </Text>
+                    )}
+                  </VStack>
+                  <Button
+                    variant="primary"
+                    leftIcon={<AddIcon />}
+                    onClick={onOpen}
+                  >
+                    Add Habit
+                  </Button>
+                </Flex>
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      await axios.post(`${API}/habits`, formData);
-      onAdd();
-    } catch (error) {
-      alert('Error creating habit');
-    }
-  };
+                {/* Single-column habit list */}
+                <Container maxW="480px" px={0}>
+                  <VStack spacing={4} align="stretch">
+                    {habits.map((habitData) => (
+                      <HabitCard
+                        key={habitData.habit.id}
+                        habitData={habitData}
+                        onToggle={toggleHabit}
+                      />
+                    ))}
+                    
+                    {habits.length === 0 && (
+                      <Card>
+                        <CardBody textAlign="center" py={12}>
+                          <Text fontSize="4xl" mb={4}>🎯</Text>
+                          <Text fontSize="lg" fontWeight="semibold" color="white" mb={2}>
+                            No habits yet
+                          </Text>
+                          <Text color="gray.400" mb={6}>
+                            Start building your daily routine!
+                          </Text>
+                          <Button variant="primary" leftIcon={<AddIcon />} onClick={onOpen}>
+                            Add Your First Habit
+                          </Button>
+                        </CardBody>
+                      </Card>
+                    )}
+                  </VStack>
+                </Container>
+              </VStack>
+            </TabPanel>
 
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
-        <h2 className="text-2xl font-bold mb-4">Add New Habit</h2>
-        
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <input
-            type="text"
-            placeholder="Habit name (e.g., Read 10 pages)"
-            value={formData.title}
-            onChange={(e) => setFormData({...formData, title: e.target.value})}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            required
-          />
-          
-          <select
-            value={formData.frequency}
-            onChange={(e) => setFormData({...formData, frequency: e.target.value})}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="daily">Daily</option>
-            <option value="weekly">Weekly</option>
-          </select>
-          
-          <input
-            type="date"
-            value={formData.start_date}
-            onChange={(e) => setFormData({...formData, start_date: e.target.value})}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-          />
-          
-          <div className="flex space-x-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 py-3 border border-gray-300 rounded-lg hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="flex-1 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700"
-            >
-              Create Habit
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-};
+            {/* My Class Tab */}
+            <TabPanel p={0}>
+              <VStack spacing={6} align="stretch">
+                {/* Class Info */}
+                {classInfo && (
+                  <Card>
+                    <CardBody>
+                      <Text fontSize="xl" fontWeight="bold" color="white" mb={4}>
+                        📚 Class Overview
+                      </Text>
+                      <Grid templateColumns="repeat(auto-fit, minmax(200px, 1fr))" gap={6}>
+                        <GridItem>
+                          <Text fontSize="2xl" fontWeight="bold" color="brand.500">
+                            {classInfo.class_name}
+                          </Text>
+                          <Text fontSize="sm" color="gray.400">Class Name</Text>
+                        </GridItem>
+                        <GridItem>
+                          <Text fontSize="2xl" fontWeight="bold" color="success">
+                            {classInfo.teacher_name}
+                          </Text>
+                          <Text fontSize="sm" color="gray.400">Teacher</Text>
+                        </GridItem>
+                        <GridItem>
+                          <Text fontSize="2xl" fontWeight="bold" color="missed">
+                            {classInfo.student_count}
+                          </Text>
+                          <Text fontSize="sm" color="gray.400">Students</Text>
+                        </GridItem>
+                      </Grid>
+                    </CardBody>
+                  </Card>
+                )}
 
-const ClassTab = ({ classData, classInfo }) => {
-  return (
-    <div className="space-y-6">
-      {/* Class Info */}
-      {classInfo && (
-        <div className="bg-white rounded-xl shadow-lg p-6">
-          <h3 className="text-xl font-bold mb-4">📚 Class Overview</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">{classInfo.class_name}</div>
-              <div className="text-sm text-gray-600">Class Name</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">{classInfo.teacher_name}</div>
-              <div className="text-sm text-gray-600">Teacher</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-purple-600">{classInfo.student_count}</div>
-              <div className="text-sm text-gray-600">Students</div>
-            </div>
-          </div>
-        </div>
-      )}
+                {/* Class Leaderboard */}
+                <Card>
+                  <CardBody>
+                    <Text fontSize="xl" fontWeight="bold" color="white" mb={4}>
+                      🏆 Class Leaderboard
+                    </Text>
+                    {classData.length > 0 ? (
+                      <VStack spacing={3} align="stretch">
+                        {classData.map((member, index) => (
+                          <Box
+                            key={member.name}
+                            p={4}
+                            bg="gray.700"
+                            borderRadius="lg"
+                            border={index < 3 ? "2px solid" : "1px solid"}
+                            borderColor={
+                              index === 0 ? "yellow.400" :
+                              index === 1 ? "gray.300" :
+                              index === 2 ? "orange.400" : "gray.600"
+                            }
+                          >
+                            <Flex justify="space-between" align="center">
+                              <HStack spacing={4}>
+                                <Flex
+                                  w="32px"
+                                  h="32px"
+                                  bg={
+                                    index === 0 ? "yellow.400" :
+                                    index === 1 ? "gray.300" :
+                                    index === 2 ? "orange.400" : "brand.500"
+                                  }
+                                  color={index < 3 ? "black" : "white"}
+                                  borderRadius="full"
+                                  align="center"
+                                  justify="center"
+                                  fontWeight="bold"
+                                >
+                                  {index + 1}
+                                </Flex>
+                                <VStack align="start" spacing={1}>
+                                  <HStack>
+                                    <Text fontWeight="semibold" color="white">
+                                      {member.name}
+                                    </Text>
+                                    {member.role === 'teacher' && (
+                                      <Badge colorScheme="purple" size="sm">
+                                        Teacher
+                                      </Badge>
+                                    )}
+                                  </HStack>
+                                  <Text fontSize="sm" color="gray.400">
+                                    {member.total_habits} habits • {member.completion_rate}% success
+                                  </Text>
+                                  <Text fontSize="xs" color="gray.500">
+                                    {member.recent_activity}
+                                  </Text>
+                                </VStack>
+                              </HStack>
+                              <HStack>
+                                <Text fontSize="lg">🔥</Text>
+                                <Text fontSize="xl" fontWeight="bold" color="missed">
+                                  {member.current_best_streak}
+                                </Text>
+                              </HStack>
+                            </Flex>
+                          </Box>
+                        ))}
+                      </VStack>
+                    ) : (
+                      <Box textAlign="center" py={8}>
+                        <Text fontSize="4xl" mb={4}>👥</Text>
+                        <Text color="gray.400">No class members found</Text>
+                      </Box>
+                    )}
+                  </CardBody>
+                </Card>
+              </VStack>
+            </TabPanel>
 
-      {/* Class Leaderboard */}
-      <div className="bg-white rounded-xl shadow-lg p-6">
-        <h3 className="text-xl font-bold mb-4">🏆 Class Leaderboard</h3>
-        {classData.length > 0 ? (
-          <div className="space-y-3">
-            {classData.map((member, index) => (
-              <div key={member.name} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                <div className="flex items-center space-x-4">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold ${
-                    index === 0 ? 'bg-yellow-500' : 
-                    index === 1 ? 'bg-gray-400' : 
-                    index === 2 ? 'bg-orange-500' : 'bg-blue-500'
-                  }`}>
-                    {index + 1}
-                  </div>
-                  <div>
-                    <div className="font-semibold flex items-center space-x-2">
-                      <span>{member.name}</span>
-                      {member.role === 'teacher' && <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded-full">Teacher</span>}
-                    </div>
-                    <div className="text-sm text-gray-600">
-                      {member.total_habits} habits • {member.completion_rate}% success rate
-                    </div>
-                    <div className="text-xs text-gray-500">{member.recent_activity}</div>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-1">
-                  <span className="text-xl">🔥</span>
-                  <span className="font-bold text-orange-600 text-lg">{member.current_best_streak}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-8">
-            <div className="text-gray-400 text-4xl mb-4">👥</div>
-            <p className="text-gray-600">No class members found</p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
+            {/* Analytics Tab (Teachers only) */}
+            {user?.role === 'teacher' && (
+              <TabPanel p={0}>
+                <Card>
+                  <CardBody>
+                    <Text fontSize="xl" fontWeight="bold" color="white" mb={6}>
+                      📊 Class Analytics
+                    </Text>
+                    
+                    {analytics ? (
+                      <VStack spacing={6} align="stretch">
+                        <Grid templateColumns="repeat(auto-fit, minmax(200px, 1fr))" gap={6}>
+                          <GridItem textAlign="center" p={4} bg="gray.700" borderRadius="lg">
+                            <Text fontSize="2xl" fontWeight="bold" color="brand.500">
+                              {analytics.class_name}
+                            </Text>
+                            <Text fontSize="sm" color="gray.400">Class Name</Text>
+                          </GridItem>
+                          <GridItem textAlign="center" p={4} bg="gray.700" borderRadius="lg">
+                            <Text fontSize="2xl" fontWeight="bold" color="success">
+                              {analytics.total_students}
+                            </Text>
+                            <Text fontSize="sm" color="gray.400">Total Students</Text>
+                          </GridItem>
+                        </Grid>
 
-const AnalyticsTab = ({ analytics }) => {
-  if (!analytics) {
-    return (
-      <div className="bg-white rounded-xl shadow-lg p-6">
-        <h3 className="text-xl font-bold mb-4">📊 Class Analytics</h3>
-        <div className="text-center py-8">
-          <div className="text-gray-400 text-4xl mb-4">📈</div>
-          <p className="text-gray-600">Loading analytics...</p>
-        </div>
-      </div>
-    );
-  }
+                        <Box overflowX="auto">
+                          <Table variant="simple">
+                            <Thead>
+                              <Tr>
+                                <Th color="gray.400">Student</Th>
+                                <Th color="gray.400" isNumeric>Total Habits</Th>
+                                <Th color="gray.400" isNumeric>Active Habits</Th>
+                                <Th color="gray.400" isNumeric>Best Streak</Th>
+                                <Th color="gray.400" isNumeric>Avg. Success</Th>
+                                <Th color="gray.400">Last Activity</Th>
+                              </Tr>
+                            </Thead>
+                            <Tbody>
+                              {analytics.analytics.map((student) => (
+                                <Tr key={student.student_email}>
+                                  <Td>
+                                    <VStack align="start" spacing={1}>
+                                      <Text fontWeight="semibold" color="white">
+                                        {student.student_name}
+                                      </Text>
+                                      <Text fontSize="sm" color="gray.400">
+                                        {student.student_email}
+                                      </Text>
+                                    </VStack>
+                                  </Td>
+                                  <Td isNumeric>
+                                    <Text fontWeight="semibold" color="white">
+                                      {student.total_habits}
+                                    </Text>
+                                  </Td>
+                                  <Td isNumeric>
+                                    <Badge
+                                      colorScheme={student.active_habits > 0 ? "green" : "gray"}
+                                    >
+                                      {student.active_habits}
+                                    </Badge>
+                                  </Td>
+                                  <Td isNumeric>
+                                    <HStack justify="flex-end">
+                                      <Text fontSize="lg">🔥</Text>
+                                      <Text fontWeight="bold" color="missed">
+                                        {student.best_current_streak}
+                                      </Text>
+                                    </HStack>
+                                  </Td>
+                                  <Td isNumeric>
+                                    <Text fontWeight="semibold" color="brand.500">
+                                      {student.average_completion_rate}%
+                                    </Text>
+                                  </Td>
+                                  <Td>
+                                    <Text fontSize="sm" color="gray.400">
+                                      {student.last_activity 
+                                        ? new Date(student.last_activity).toLocaleDateString()
+                                        : 'Never'
+                                      }
+                                    </Text>
+                                  </Td>
+                                </Tr>
+                              ))}
+                            </tbody>
+                          </Table>
+                        </Box>
 
-  return (
-    <div className="space-y-6">
-      {/* Analytics Overview */}
-      <div className="bg-white rounded-xl shadow-lg p-6">
-        <h3 className="text-xl font-bold mb-4">📊 Class Analytics</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          <div className="text-center p-4 bg-blue-50 rounded-lg">
-            <div className="text-2xl font-bold text-blue-600">{analytics.class_name}</div>
-            <div className="text-sm text-gray-600">Class Name</div>
-          </div>
-          <div className="text-center p-4 bg-green-50 rounded-lg">
-            <div className="text-2xl font-bold text-green-600">{analytics.total_students}</div>
-            <div className="text-sm text-gray-600">Total Students</div>
-          </div>
-        </div>
+                        {analytics.analytics.length === 0 && (
+                          <Box textAlign="center" py={8}>
+                            <Text fontSize="4xl" mb={4}>👥</Text>
+                            <Text color="gray.400">No students in this class yet</Text>
+                          </Box>
+                        )}
+                      </VStack>
+                    ) : (
+                      <Box textAlign="center" py={8}>
+                        <Text fontSize="4xl" mb={4}>📈</Text>
+                        <Text color="gray.400">Loading analytics...</Text>
+                      </Box>
+                    )}
+                  </CardBody>
+                </Card>
+              </TabPanel>
+            )}
+          </TabPanels>
+        </Tabs>
+      </Container>
 
-        {/* Student Analytics Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full table-auto">
-            <thead>
-              <tr className="border-b">
-                <th className="text-left py-3 px-2">Student</th>
-                <th className="text-center py-3 px-2">Total Habits</th>
-                <th className="text-center py-3 px-2">Active Habits</th>
-                <th className="text-center py-3 px-2">Best Streak</th>
-                <th className="text-center py-3 px-2">Avg. Success</th>
-                <th className="text-center py-3 px-2">Last Activity</th>
-              </tr>
-            </thead>
-            <tbody>
-              {analytics.analytics.map((student, index) => (
-                <tr key={student.student_email} className={index % 2 === 0 ? 'bg-gray-50' : ''}>
-                  <td className="py-3 px-2">
-                    <div>
-                      <div className="font-semibold">{student.student_name}</div>
-                      <div className="text-sm text-gray-600">{student.student_email}</div>
-                    </div>
-                  </td>
-                  <td className="text-center py-3 px-2 font-semibold">{student.total_habits}</td>
-                  <td className="text-center py-3 px-2">
-                    <span className={`px-2 py-1 rounded-full text-sm ${
-                      student.active_habits > 0 ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                    }`}>
-                      {student.active_habits}
-                    </span>
-                  </td>
-                  <td className="text-center py-3 px-2">
-                    <div className="flex items-center justify-center space-x-1">
-                      <span className="text-lg">🔥</span>
-                      <span className="font-bold text-orange-600">{student.best_current_streak}</span>
-                    </div>
-                  </td>
-                  <td className="text-center py-3 px-2 font-semibold text-blue-600">
-                    {student.average_completion_rate}%
-                  </td>
-                  <td className="text-center py-3 px-2 text-sm text-gray-600">
-                    {student.last_activity ? new Date(student.last_activity).toLocaleDateString() : 'Never'}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {analytics.analytics.length === 0 && (
-          <div className="text-center py-8">
-            <div className="text-gray-400 text-4xl mb-4">👥</div>
-            <p className="text-gray-600">No students in this class yet</p>
-          </div>
-        )}
-      </div>
-    </div>
+      <AddHabitModal
+        isOpen={isOpen}
+        onClose={onClose}
+        onHabitAdded={handleHabitAdded}
+      />
+    </Box>
   );
 };
 
@@ -619,9 +684,14 @@ function App() {
   const { token } = useAuth();
   
   return (
-    <div className="App">
-      {token ? <Dashboard /> : <AuthForm />}
-    </div>
+    <>
+      <ColorModeScript initialColorMode="dark" />
+      <ChakraProvider theme={theme}>
+        <Box minH="100vh" bg="surface">
+          {token ? <Dashboard /> : <AuthForm />}
+        </Box>
+      </ChakraProvider>
+    </>
   );
 }
 
