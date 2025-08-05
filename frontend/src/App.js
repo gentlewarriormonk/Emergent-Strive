@@ -244,7 +244,7 @@ const HabitCard = ({ habitData, onToggle }) => {
               : 'bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white'
           }`}
         >
-          {today_completed ? '✓ Done' : 'Mark'}
+          {today_completed ? '✓ Done' : 'Log Today'}
         </button>
       </div>
 
