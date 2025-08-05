@@ -696,7 +696,16 @@ const Dashboard = () => {
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              <span className="text-white text-sm">Welcome, {user?.name}</span>
+              <div className="flex items-center space-x-2">
+                <span className="text-white text-sm">Welcome, {user?.name}</span>
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  user?.role === 'teacher' 
+                    ? 'bg-purple-900 text-purple-200' 
+                    : 'bg-blue-900 text-blue-200'
+                }`}>
+                  {user?.role === 'teacher' ? 'Teacher' : 'Student'}
+                </span>
+              </div>
               <button
                 onClick={logout}
                 className="bg-white bg-opacity-20 hover:bg-opacity-30 px-4 py-2 rounded-lg text-white transition-all"
