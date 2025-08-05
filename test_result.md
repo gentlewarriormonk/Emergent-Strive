@@ -450,13 +450,12 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Gamification Backend - XP/Level System"
-    - "Gamification Backend - Crew Auto-Assignment System"
-    - "Gamification Backend - Quest System"
-    - "Gamification Backend - Nightly Cron Job"
-    - "Gamification Backend - Streak Reward System"
-    - "Gamification Backend - New API Endpoints"
-    - "CSV Export System"
+    - "Habit Completion Fix - Log Today Button"
+    - "Add Habit Bug Fix - Multiple Habit Creation"
+    - "Quest System - Teacher Creation and Student Completion"
+    - "Crew Management - Teacher Only Access"
+    - "Role Clarity - Role Badges in Navbar"
+    - "XP System - Non-Negative Values"
   stuck_tasks: []
   test_all: true
   test_priority: "high_first"
