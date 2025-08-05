@@ -859,6 +859,24 @@ const Dashboard = () => {
                 }`}>
                   {user?.role === 'teacher' ? 'Teacher' : 'Student'}
                 </span>
+                
+                {/* Development Mode Role Toggle */}
+                {process.env.NODE_ENV === 'development' && (
+                  <button
+                    onClick={() => {
+                      // Simple client-side role toggle for testing
+                      const newRole = user?.role === 'teacher' ? 'student' : 'teacher';
+                      // This is a simplified toggle - in real app this would need proper backend handling
+                      const newUser = { ...user, role: newRole };
+                      localStorage.setItem('dev_role_override', newRole);
+                      window.location.reload(); // Simple refresh to apply changes
+                    }}
+                    className="text-xs bg-yellow-600 hover:bg-yellow-500 px-2 py-1 rounded text-white"
+                    title="Development: Toggle Role"
+                  >
+                    🔄 Toggle Role
+                  </button>
+                )}
               </div>
               <button
                 onClick={logout}
