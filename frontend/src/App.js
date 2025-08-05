@@ -295,6 +295,7 @@ const AddHabitModal = ({ isOpen, onClose, onHabitAdded }) => {
         name: '',
         repeats: 'daily',
         startDate: new Date().toISOString().split('T')[0],
+        custom_days: []
       });
     } catch (error) {
       alert('Failed to create habit');
