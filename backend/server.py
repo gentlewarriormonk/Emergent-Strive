@@ -640,6 +640,95 @@ async def get_class_info(
         logging.error(f"Error fetching class info: {e}")
         raise HTTPException(status_code=400, detail=str(e))
 
+@api_router.get("/classes/{class_id}/analytics")
+async def get_class_analytics(
+    class_id: str,
+    authorization: str = Header(...),
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Get class analytics (teacher/admin only)."""
+    try:
+        client = get_user_client(authorization)
+        
+        # Verify user has permission to access this class
+        context = await get_primary_context(current_user['id'], client)
+        
+        if context['role'] not in ['admin', 'teacher']:
+            raise HTTPException(status_code=403, detail="Only teachers and admins can access analytics")
+        
+        # Get class info
+        class_result = client.table('classes').select('*').eq('id', class_id).execute()
+        if not class_result.data:
+            raise HTTPException(status_code=404, detail="Class not found")
+        
+        class_info = class_result.data[0]
+        
+        # Get all students in this class
+        students_result = client.table('memberships').select('user_id').eq(
+            'class_id', class_id
+        ).eq('role', 'student').execute()
+        
+        students = students_result.data or []
+        
+        analytics = []
+        for student in students:
+            user_id = student['user_id']
+            
+            # Get student's habits
+            habits_result = client.table('habits').select('id').eq(
+                'user_id', user_id
+            ).execute()
+            
+            habits = habits_result.data or []
+            
+            # Calculate analytics
+            total_habits = len(habits)
+            active_habits = 0
+            best_current_streak = 0
+            total_completion_rate = 0
+            
+            for habit in habits:
+                stats = await calculate_habit_stats(habit['id'], client)
+                if stats['current_streak'] > 0:
+                    active_habits += 1
+                best_current_streak = max(best_current_streak, stats['current_streak'])
+                total_completion_rate += stats['percent_complete']
+            
+            # Get last activity
+            last_activity = None
+            if habits:
+                recent_log_result = client.table('habit_logs').select('created_at').in_(
+                    'habit_id', [h['id'] for h in habits]
+                ).order('created_at', desc=True).limit(1).execute()
+                
+                if recent_log_result.data:
+                    last_activity = recent_log_result.data[0]['created_at']
+            
+            average_completion_rate = total_completion_rate / total_habits if total_habits > 0 else 0
+            
+            # Note: In real implementation, you'd get actual student names from Supabase Auth
+            analytics.append({
+                'student_name': f"Student {user_id[:8]}",
+                'student_email': f"student.{user_id[:8]}@example.com",
+                'total_habits': total_habits,
+                'active_habits': active_habits,
+                'best_current_streak': best_current_streak,
+                'average_completion_rate': round(average_completion_rate, 1),
+                'last_activity': last_activity
+            })
+        
+        return {
+            'class_name': class_info['name'],
+            'total_students': len(students),
+            'analytics': analytics
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Error fetching class analytics: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+
 # Include the router in the main app
 app.include_router(api_router)
 
