@@ -295,7 +295,95 @@ class ClassBasedHabitTrackerTester:
         except Exception as e:
             self.log_result("class_features", "Enhanced Teacher Analytics", False, f"Exception: {str(e)}")
     
-    def test_student_analytics_access_denied(self):
+    def test_csv_export_endpoint(self):
+        """Test CSV export endpoint /classes/{class_id}/export (Phase 2)"""
+        print("\n=== Testing CSV Export Endpoint (Phase 2) ===")
+        
+        # Find teacher user
+        teacher_email = None
+        teacher_class_id = None
+        for user in self.test_users:
+            if user["role"] == "teacher":
+                teacher_email = user["email"]
+                teacher_class_id = self.test_classes.get(user["class_name"])
+                break
+        
+        if not teacher_email or not teacher_class_id:
+            self.log_result("class_features", "CSV Export Endpoint", False, "No teacher user or class available")
+            return
+        
+        teacher_token = self.test_tokens[teacher_email]
+        headers = {"Authorization": f"Bearer {teacher_token}"}
+        
+        try:
+            response = requests.get(f"{self.base_url}/classes/{teacher_class_id}/export", headers=headers)
+            if response.status_code == 200:
+                # Check if response is CSV
+                content_type = response.headers.get('content-type', '')
+                content_disposition = response.headers.get('content-disposition', '')
+                
+                if 'text/csv' in content_type and 'attachment' in content_disposition:
+                    # Check if CSV content is valid
+                    csv_content = response.text
+                    lines = csv_content.strip().split('\n')
+                    
+                    if len(lines) >= 2:  # At least header + one data row or summary
+                        header = lines[0]
+                        expected_headers = ['Student Name', 'Email', 'Total Habits', 'Active Habits', 'Best Streak', 'Completion Rate (%)', 'Last Activity']
+                        
+                        # Check if all expected headers are present
+                        header_check = all(expected_header in header for expected_header in expected_headers)
+                        
+                        if header_check:
+                            self.log_result("class_features", "CSV Export Endpoint", True, 
+                                          f"CSV export successful: {len(lines)} lines, proper headers and content-disposition")
+                        else:
+                            self.log_result("class_features", "CSV Export Endpoint", False, 
+                                          f"CSV headers incomplete. Expected: {expected_headers}, Got: {header}")
+                    else:
+                        self.log_result("class_features", "CSV Export Endpoint", False, 
+                                      "CSV content too short (missing data)")
+                else:
+                    self.log_result("class_features", "CSV Export Endpoint", False, 
+                                  f"Invalid response format. Content-Type: {content_type}, Content-Disposition: {content_disposition}")
+            else:
+                self.log_result("class_features", "CSV Export Endpoint", False, 
+                              f"HTTP {response.status_code}: {response.text}")
+        except Exception as e:
+            self.log_result("class_features", "CSV Export Endpoint", False, f"Exception: {str(e)}")
+    
+    def test_student_csv_export_access_denied(self):
+        """Test that students cannot access CSV export endpoint"""
+        print("\n=== Testing Student CSV Export Access Denied ===")
+        
+        # Find student user
+        student_email = None
+        for user in self.test_users:
+            if user["role"] == "student":
+                student_email = user["email"]
+                break
+        
+        if not student_email:
+            self.log_result("authorization", "Student CSV Export Access Denied", False, "No student user available")
+            return
+        
+        student_token = self.test_tokens[student_email]
+        headers = {"Authorization": f"Bearer {student_token}"}
+        
+        # Try to access CSV export with any class_id
+        test_class_id = list(self.test_classes.values())[0] if self.test_classes else "dummy_id"
+        
+        try:
+            response = requests.get(f"{self.base_url}/classes/{test_class_id}/export", headers=headers)
+            if response.status_code == 403:
+                self.log_result("authorization", "Student CSV Export Access Denied", True, 
+                              "Correctly denied student access to CSV export")
+            else:
+                self.log_result("authorization", "Student CSV Export Access Denied", False, 
+                              f"Should have denied access, got {response.status_code}")
+        except Exception as e:
+            self.log_result("authorization", "Student CSV Export Access Denied", False, f"Exception: {str(e)}")
+    
         """Test that students cannot access analytics endpoints"""
         print("\n=== Testing Student Analytics Access Denied ===")
         
