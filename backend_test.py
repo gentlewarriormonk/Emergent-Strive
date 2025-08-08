@@ -639,19 +639,21 @@ class ClassBasedHabitTrackerTester:
         self.test_student_registration_nonexistent_class()
         self.test_user_login()
         
-        # Class-Based Features
+        # Class-Based Features (including Phase 2 enhancements)
         self.test_class_info_endpoint()
         self.test_class_feed_endpoint()
         self.test_teacher_analytics_endpoint()
+        self.test_csv_export_endpoint()
         
-        # Authorization & Security
+        # Authorization & Security (including Phase 2)
         self.test_student_analytics_access_denied()
+        self.test_student_csv_export_access_denied()
         self.test_teacher_cross_class_access_denied()
         self.test_jwt_validation()
         
-        # Habit Management (unchanged)
+        # Habit Management (enhanced for Phase 2)
         self.test_habit_creation_and_management()
-        self.test_streak_calculation()
+        self.test_enhanced_streak_calculations()
         
         # Data Validation
         self.test_data_validation()
