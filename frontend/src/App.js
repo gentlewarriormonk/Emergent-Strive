@@ -668,7 +668,11 @@ const Dashboard = () => {
         <div className="max-w-6xl mx-auto px-6 py-4">
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-3">
-              <img src="/strive-logo.svg" alt="Strive" className="w-10 h-10" />
+              <img 
+                src="/strive-logo-white-on-transparent.png" 
+                alt="Strive" 
+                style={{ width: '160px', maxWidth: '160px' }}
+              />
               <div>
                 <h1 className="text-2xl font-bold text-white font-inter">Strive</h1>
                 <p className="text-sm text-blue-100 flex items-center gap-1">
