@@ -27,6 +27,7 @@ export const AuthProvider = ({ children }) => {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth state change:', event, session)
         setSession(session)
         setUser(session?.user ?? null)
         setLoading(false)
@@ -36,17 +37,31 @@ export const AuthProvider = ({ children }) => {
     return () => subscription.unsubscribe()
   }, [])
 
-  const signInWithEmail = async (email) => {
+  const signInWithMagicLink = async (email) => {
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: window.location.origin
+        emailRedirectTo: 'https://emergent-strive.vercel.app/auth/callback'
       }
     })
     
     if (error) throw error
     
     return { message: 'Check your email for the login link!' }
+  }
+
+  const resendMagicLink = async (email) => {
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+      options: {
+        emailRedirectTo: 'https://emergent-strive.vercel.app/auth/callback'
+      }
+    })
+    
+    if (error) throw error
+    
+    return { message: 'Magic link resent! Check your email.' }
   }
 
   const signOut = async () => {
@@ -62,7 +77,8 @@ export const AuthProvider = ({ children }) => {
     user,
     session,
     loading,
-    signInWithEmail,
+    signInWithMagicLink,
+    resendMagicLink,
     signOut,
     getAccessToken
   }
