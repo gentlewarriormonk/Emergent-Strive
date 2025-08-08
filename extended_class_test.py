@@ -10,7 +10,7 @@ import uuid
 from datetime import date, datetime, timedelta
 import time
 
-BACKEND_URL = "https://e1775d52-63b1-4e94-ab13-bc0364a8e8b7.preview.emergentagent.com/api"
+BACKEND_URL = "https://ab4df00f-3ade-4cc6-840e-ec03f13bb7d7.preview.emergentagent.com/api"
 
 class ExtendedClassTester:
     def __init__(self):
