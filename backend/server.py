@@ -671,11 +671,16 @@ async def get_class_analytics(
         students = students_result.data or []
         
         analytics = []
+        total_completion_rate = 0
+        all_streaks = []
+        last_7_days_total = 0
+        last_7_days_completed = 0
+        
         for student in students:
             user_id = student['user_id']
             
             # Get student's habits
-            habits_result = client.table('habits').select('id').eq(
+            habits_result = client.table('habits').select('id, title').eq(
                 'user_id', user_id
             ).execute()
             
@@ -685,14 +690,32 @@ async def get_class_analytics(
             total_habits = len(habits)
             active_habits = 0
             best_current_streak = 0
-            total_completion_rate = 0
+            student_completion_rate = 0
             
             for habit in habits:
                 stats = await calculate_habit_stats(habit['id'], client)
                 if stats['current_streak'] > 0:
                     active_habits += 1
                 best_current_streak = max(best_current_streak, stats['current_streak'])
-                total_completion_rate += stats['percent_complete']
+                student_completion_rate += stats['percent_complete']
+                
+                # Add to overall streaks for top 3
+                if stats['current_streak'] > 0:
+                    all_streaks.append({
+                        'user_id': user_id,
+                        'streak': stats['current_streak'],
+                        'habit_title': habit['title']
+                    })
+                
+                # Calculate last 7 days completion for this habit
+                seven_days_ago = date.today() - timedelta(days=6)
+                recent_logs_result = client.table('habit_logs').select('completed').eq(
+                    'habit_id', habit['id']
+                ).gte('occurred_on', str(seven_days_ago)).execute()
+                
+                recent_logs = recent_logs_result.data or []
+                last_7_days_total += 7  # 7 days per habit
+                last_7_days_completed += sum(1 for log in recent_logs if log['completed'])
             
             # Get last activity
             last_activity = None
@@ -704,12 +727,14 @@ async def get_class_analytics(
                 if recent_log_result.data:
                     last_activity = recent_log_result.data[0]['created_at']
             
-            average_completion_rate = total_completion_rate / total_habits if total_habits > 0 else 0
+            average_completion_rate = student_completion_rate / total_habits if total_habits > 0 else 0
+            total_completion_rate += average_completion_rate
             
             # Note: In real implementation, you'd get actual student names from Supabase Auth
             analytics.append({
                 'student_name': f"Student {user_id[:8]}",
                 'student_email': f"student.{user_id[:8]}@example.com",
+                'user_id': user_id,
                 'total_habits': total_habits,
                 'active_habits': active_habits,
                 'best_current_streak': best_current_streak,
@@ -717,9 +742,18 @@ async def get_class_analytics(
                 'last_activity': last_activity
             })
         
+        # Calculate overall metrics
+        average_daily_completion = (last_7_days_completed / last_7_days_total * 100) if last_7_days_total > 0 else 0
+        
+        # Get top 3 streaks
+        all_streaks.sort(key=lambda x: x['streak'], reverse=True)
+        top_3_streaks = all_streaks[:3]
+        
         return {
             'class_name': class_info['name'],
             'total_students': len(students),
+            'average_daily_completion': round(average_daily_completion, 1),
+            'top_3_streaks': top_3_streaks,
             'analytics': analytics
         }
         
@@ -727,6 +761,99 @@ async def get_class_analytics(
         raise
     except Exception as e:
         logging.error(f"Error fetching class analytics: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+@api_router.get("/classes/{class_id}/export")
+async def export_class_csv(
+    class_id: str,
+    authorization: str = Header(...),
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Export class data as CSV (teacher/admin only)."""
+    try:
+        from fastapi.responses import StreamingResponse
+        import io
+        import csv
+        
+        client = get_user_client(authorization)
+        
+        # Verify permissions
+        context = await get_primary_context(current_user['id'], client)
+        if context['role'] not in ['admin', 'teacher']:
+            raise HTTPException(status_code=403, detail="Only teachers and admins can export data")
+        
+        # Get class analytics data
+        analytics_response = await get_class_analytics(class_id, authorization, current_user)
+        
+        # Create CSV content
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        # Write header
+        writer.writerow([
+            'Student Name',
+            'Email', 
+            'Total Habits',
+            'Active Habits',
+            'Best Streak',
+            'Completion Rate (%)',
+            'Last Activity'
+        ])
+        
+        # Write student data
+        for student in analytics_response['analytics']:
+            last_activity = student['last_activity']
+            if last_activity:
+                try:
+                    # Convert ISO datetime to readable format
+                    from datetime import datetime
+                    dt = datetime.fromisoformat(last_activity.replace('Z', '+00:00'))
+                    last_activity = dt.strftime('%Y-%m-%d %H:%M')
+                except:
+                    last_activity = 'Unknown'
+            else:
+                last_activity = 'Never'
+                
+            writer.writerow([
+                student['student_name'],
+                student['student_email'],
+                student['total_habits'],
+                student['active_habits'],
+                student['best_current_streak'],
+                student['average_completion_rate'],
+                last_activity
+            ])
+        
+        # Add summary row
+        writer.writerow([])
+        writer.writerow([
+            'CLASS SUMMARY',
+            f"Total Students: {analytics_response['total_students']}",
+            f"Avg Daily Completion: {analytics_response['average_daily_completion']}%",
+            '',
+            '',
+            '',
+            f"Exported: {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}"
+        ])
+        
+        output.seek(0)
+        
+        # Create streaming response
+        def iter_csv():
+            yield output.getvalue()
+        
+        filename = f"class_{analytics_response['class_name'].replace(' ', '_')}_export_{date.today().isoformat()}.csv"
+        
+        return StreamingResponse(
+            iter_csv(),
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Error exporting CSV: {e}")
         raise HTTPException(status_code=400, detail=str(e))
 
 # Include the router in the main app
