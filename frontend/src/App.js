@@ -120,6 +120,16 @@ const TeacherDashboardPage = () => {
 
   return (
     <div className="min-h-screen bg-surface">
+      {showWizard && (
+        <AdminWizard 
+          onComplete={() => {
+            setShowWizard(false);
+            fetchUserContext(); // Refresh context after wizard
+          }}
+          initialSchoolName={context?.schools?.name || "My School"}
+        />
+      )}
+      
       {/* Header */}
       <div className="bg-gradient-to-r from-blue-600 to-purple-600 border-b border-gray-700">
         <div className="max-w-6xl mx-auto px-6 py-4">
