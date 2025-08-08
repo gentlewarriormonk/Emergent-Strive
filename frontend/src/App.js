@@ -46,6 +46,7 @@ const TeacherRoute = () => {
 const TeacherDashboardPage = () => {
   const [context, setContext] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showWizard, setShowWizard] = useState(false);
   const { user, signOut, getAccessToken } = useAuth();
 
   useEffect(() => {
