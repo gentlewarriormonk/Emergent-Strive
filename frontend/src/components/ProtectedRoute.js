@@ -46,8 +46,12 @@ const AuthForm = () => {
       <div className="bg-card rounded-2xl shadow-2xl p-8 w-full max-w-md border border-gray-700">
         <div className="text-center mb-8">
           <div className="flex items-center justify-center space-x-3 mb-4">
-            <img src="/strive-logo.svg" alt="Strive" className="w-12 h-12" />
-            <h1 className="text-4xl font-bold text-white font-inter">Strive</h1>
+            <img 
+              src="/strive-logo-white-on-transparent.png" 
+              alt="Strive" 
+              className="w-16 h-16"
+              style={{ width: '160px', maxWidth: '160px' }}
+            />
           </div>
           <p className="text-gray-400">Multi-school habit tracking</p>
         </div>
