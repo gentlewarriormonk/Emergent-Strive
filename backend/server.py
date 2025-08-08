@@ -1,8 +1,7 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, status
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, Header
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
-from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
 from pathlib import Path
@@ -10,58 +9,77 @@ from pydantic import BaseModel, Field, EmailStr
 from typing import List, Optional, Dict, Any
 import uuid
 from datetime import datetime, date, timedelta
-import hashlib
-import jwt
-from passlib.context import CryptContext
 import asyncio
+from supabase import create_client, Client
+from supabase_client import supabase_service
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-# MongoDB connection
-mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+# Supabase configuration
+SUPABASE_URL = os.environ.get('SUPABASE_URL')
+SUPABASE_ANON_KEY = os.environ.get('SUPABASE_ANON_KEY')
+
+if not SUPABASE_URL or not SUPABASE_ANON_KEY:
+    raise ValueError("SUPABASE_URL and SUPABASE_ANON_KEY are required")
+
+# Create anon client for user operations
+supabase_anon: Client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
 
 # Security
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
-SECRET_KEY = "your-secret-key-change-in-production"
-ALGORITHM = "HS256"
 
-# Create the main app without a prefix
-app = FastAPI(title="One Thing - Habit Tracker")
+# Create the main app
+app = FastAPI(title="Strive - Multi-School Habit Tracker")
 
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
 
 # Models
-class UserCreate(BaseModel):
+class SchoolCreate(BaseModel):
     name: str
-    email: EmailStr
-    password: str
-    role: str = "student"  # student or teacher
-    class_name: str  # Required now
 
-class UserLogin(BaseModel):
-    email: EmailStr
-    password: str
-
-class User(BaseModel):
-    id: str
+class ClassCreate(BaseModel):
     name: str
-    email: str
-    role: str
-    class_id: str
-    created_at: datetime
+    school_id: str
+
+class InviteRequest(BaseModel):
+    role: str = "student"  # student, teacher
+
+class JoinClassRequest(BaseModel):
+    invite_code: str
 
 class HabitCreate(BaseModel):
     name: str
     repeats: str = "daily"  # daily, weekly, custom
     startDate: Optional[date] = None
 
+class HabitLogCreate(BaseModel):
+    date: date
+    completed: bool
+
+class School(BaseModel):
+    id: str
+    name: str
+    created_at: datetime
+
+class Class(BaseModel):
+    id: str
+    school_id: str
+    name: str
+    invite_code: Optional[str]
+    created_at: datetime
+
+class Membership(BaseModel):
+    user_id: str
+    school_id: str
+    class_id: Optional[str]
+    role: str
+
 class Habit(BaseModel):
     id: str
+    school_id: str
+    class_id: Optional[str]
     user_id: str
     title: str
     frequency: str
@@ -71,431 +89,556 @@ class Habit(BaseModel):
 class HabitLog(BaseModel):
     id: str
     habit_id: str
-    date: date
+    user_id: str
+    occurred_on: date
     completed: bool
     created_at: datetime
-
-class HabitLogCreate(BaseModel):
-    date: date
-    completed: bool
-
-class HabitStats(BaseModel):
-    habit_id: str
-    current_streak: int
-    best_streak: int
-    percent_complete: float
-
-class Class(BaseModel):
-    id: str
-    name: str
-    teacher_id: str
-    created_at: datetime
-
-class StudentAnalytics(BaseModel):
-    student_name: str
-    student_email: str
-    total_habits: int
-    active_habits: int
-    best_current_streak: int
-    average_completion_rate: float
-    last_activity: Optional[datetime]
-
-class ClassMemberData(BaseModel):
-    name: str
-    role: str
-    current_best_streak: int
-    total_habits: int
-    completion_rate: float
-    recent_activity: str
 
 # Helper functions
-def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
-
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
-
-def create_access_token(user_id: str) -> str:
-    payload = {"user_id": user_id, "exp": datetime.utcnow() + timedelta(days=30)}
-    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
-
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+def get_supabase_user(authorization: str) -> Dict[str, Any]:
+    """Get user from Supabase JWT token."""
     try:
-        token = credentials.credentials
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id = payload.get("user_id")
-        if not user_id:
+        if not authorization.startswith("Bearer "):
+            raise HTTPException(status_code=401, detail="Invalid authorization header")
+        
+        token = authorization[7:]  # Remove "Bearer " prefix
+        
+        # Create client with user token
+        client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
+        
+        # Get user from token
+        user_response = client.auth.get_user(token)
+        
+        if not user_response.user:
             raise HTTPException(status_code=401, detail="Invalid token")
         
-        user_doc = await db.users.find_one({"id": user_id})
-        if not user_doc:
-            raise HTTPException(status_code=401, detail="User not found")
+        return user_response.user
         
-        return User(**user_doc)
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Token expired")
-    except jwt.InvalidTokenError:
-        raise HTTPException(status_code=401, detail="Invalid token")
+    except Exception as e:
+        logging.error(f"Auth error: {e}")
+        raise HTTPException(status_code=401, detail="Authentication failed")
 
-async def calculate_streak(habit_id: str) -> tuple:
-    """Calculate current and best streak for a habit"""
-    logs = await db.habit_logs.find({"habit_id": habit_id}).sort("date", 1).to_list(1000)
+def get_user_client(authorization: str) -> Client:
+    """Get Supabase client with user JWT token."""
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Invalid authorization header")
     
-    if not logs:
-        return 0, 0
+    token = authorization[7:]
+    client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
     
-    # Calculate current streak (from today backwards)
-    current_streak = 0
-    today = date.today()
-    check_date = today
+    # Set the auth token for this client
+    try:
+        client.auth.set_session(token, None)
+        return client
+    except Exception as e:
+        logging.error(f"Error setting auth session: {e}")
+        raise HTTPException(status_code=401, detail="Authentication failed")
+
+async def get_current_user(authorization: str = Header(...)) -> Dict[str, Any]:
+    """Dependency to get current authenticated user."""
+    return get_supabase_user(authorization)
+
+async def get_user_memberships(user_id: str, client: Client) -> List[Dict[str, Any]]:
+    """Get user's memberships with school and class info."""
+    try:
+        result = client.table('memberships').select(
+            '*, schools(*), classes(*)'
+        ).eq('user_id', user_id).execute()
+        
+        return result.data or []
+    except Exception as e:
+        logging.error(f"Error fetching memberships: {e}")
+        return []
+
+async def get_primary_context(user_id: str, client: Client) -> Dict[str, Any]:
+    """Get user's primary school/class context."""
+    memberships = await get_user_memberships(user_id, client)
     
-    for i in range(30):  # Check last 30 days
-        log = next((l for l in logs if l["date"] == check_date.isoformat()), None)
-        if log and log["completed"]:
-            current_streak += 1
-            check_date -= timedelta(days=1)
-        else:
-            break
+    if not memberships:
+        raise HTTPException(status_code=404, detail="User not part of any school")
     
-    # Calculate best streak
-    best_streak = 0
-    temp_streak = 0
-    
-    # Convert dates to date objects for comparison
-    for log in logs:
-        if log["completed"]:
-            temp_streak += 1
-            best_streak = max(best_streak, temp_streak)
-        else:
-            temp_streak = 0
-    
-    return current_streak, best_streak
+    # For now, return first membership (TODO: add context switching)
+    return memberships[0]
+
+async def calculate_habit_stats(habit_id: str, client: Client) -> Dict[str, Any]:
+    """Calculate habit statistics."""
+    try:
+        # Get all logs for this habit
+        logs_result = client.table('habit_logs').select(
+            'occurred_on, completed'
+        ).eq('habit_id', habit_id).order('occurred_on').execute()
+        
+        logs = logs_result.data or []
+        
+        if not logs:
+            return {
+                'current_streak': 0,
+                'best_streak': 0,
+                'percent_complete': 0.0
+            }
+        
+        # Calculate current streak (from today backwards)
+        current_streak = 0
+        today = date.today()
+        
+        for i in range(30):  # Check last 30 days
+            check_date = today - timedelta(days=i)
+            log = next((l for l in logs if l['occurred_on'] == str(check_date)), None)
+            if log and log['completed']:
+                current_streak += 1
+            else:
+                break
+        
+        # Calculate best streak
+        best_streak = 0
+        temp_streak = 0
+        
+        for log in logs:
+            if log['completed']:
+                temp_streak += 1
+                best_streak = max(best_streak, temp_streak)
+            else:
+                temp_streak = 0
+        
+        # Calculate completion rate
+        total_logs = len(logs)
+        completed_logs = sum(1 for log in logs if log['completed'])
+        percent_complete = (completed_logs / total_logs * 100) if total_logs > 0 else 0
+        
+        return {
+            'current_streak': current_streak,
+            'best_streak': best_streak,
+            'percent_complete': round(percent_complete, 1)
+        }
+    except Exception as e:
+        logging.error(f"Error calculating habit stats: {e}")
+        return {'current_streak': 0, 'best_streak': 0, 'percent_complete': 0.0}
 
 # Routes
-@api_router.post("/auth/register")
-async def register(user_data: UserCreate):
-    # Check if user exists
-    existing_user = await db.users.find_one({"email": user_data.email})
-    if existing_user:
-        raise HTTPException(status_code=400, detail="Email already registered")
-    
-    # Handle class creation/assignment
-    class_id = None
-    if user_data.role == "teacher":
-        # Create new class for teacher
-        class_doc = {
-            "id": str(uuid.uuid4()),
-            "name": user_data.class_name,
-            "teacher_id": "",  # Will be updated after user creation
-            "created_at": datetime.utcnow()
-        }
-        await db.classes.insert_one(class_doc)
-        class_id = class_doc["id"]
-    else:
-        # Find existing class for student
-        class_doc = await db.classes.find_one({"name": user_data.class_name})
-        if not class_doc:
-            raise HTTPException(status_code=404, detail=f"Class '{user_data.class_name}' not found. Ask your teacher to create the class first.")
-        class_id = class_doc["id"]
-    
-    # Create user
-    user_id = str(uuid.uuid4())
-    user_doc = {
-        "id": user_id,
-        "name": user_data.name,
-        "email": user_data.email,
-        "password_hash": hash_password(user_data.password),
-        "role": user_data.role,
-        "class_id": class_id,
-        "created_at": datetime.utcnow()
-    }
-    
-    await db.users.insert_one(user_doc)
-    
-    # Update class with teacher_id if teacher
-    if user_data.role == "teacher" and class_id:
-        await db.classes.update_one(
-            {"id": class_id}, 
-            {"$set": {"teacher_id": user_id}}
+@api_router.post("/schools")
+async def create_school(
+    school_data: SchoolCreate,
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Create a new school (admin operation)."""
+    try:
+        school = await supabase_service.create_school_and_admin(
+            school_data.name, 
+            current_user['id']
         )
-    
-    token = create_access_token(user_id)
-    return {"token": token, "user": User(**user_doc)}
+        return {"school": school, "message": "School created successfully"}
+    except Exception as e:
+        logging.error(f"Error creating school: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
 
-@api_router.post("/auth/login")
-async def login(login_data: UserLogin):
-    user_doc = await db.users.find_one({"email": login_data.email})
-    if not user_doc or not verify_password(login_data.password, user_doc["password_hash"]):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-    
-    token = create_access_token(user_doc["id"])
-    return {"token": token, "user": User(**user_doc)}
+@api_router.post("/classes")
+async def create_class(
+    class_data: ClassCreate,
+    authorization: str = Header(...),
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Create a new class (admin/teacher only)."""
+    try:
+        client = get_user_client(authorization)
+        
+        # Verify user has permission to create class in this school
+        membership = await get_primary_context(current_user['id'], client)
+        
+        if membership['role'] not in ['admin', 'teacher']:
+            raise HTTPException(status_code=403, detail="Only admins and teachers can create classes")
+        
+        result = client.table('classes').insert({
+            'school_id': class_data.school_id,
+            'name': class_data.name
+        }).execute()
+        
+        if not result.data:
+            raise HTTPException(status_code=400, detail="Failed to create class")
+        
+        return {"class": result.data[0]}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Error creating class: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+@api_router.post("/classes/{class_id}/invite")
+async def generate_invite_code(
+    class_id: str,
+    invite_data: InviteRequest,
+    authorization: str = Header(...),
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Generate invite code for a class."""
+    try:
+        client = get_user_client(authorization)
+        
+        # Verify user has permission
+        membership = await get_primary_context(current_user['id'], client)
+        if membership['role'] not in ['admin', 'teacher']:
+            raise HTTPException(status_code=403, detail="Only admins and teachers can generate invite codes")
+        
+        # Generate unique invite code
+        invite_code = f"JOIN-{uuid.uuid4().hex[:8].upper()}"
+        
+        # Update class with invite code
+        result = client.table('classes').update({
+            'invite_code': invite_code
+        }).eq('id', class_id).execute()
+        
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Class not found")
+        
+        # Construct join URL
+        join_url = f"/join?code={invite_code}"
+        
+        return {
+            "invite_code": invite_code,
+            "join_url": join_url,
+            "expires_at": None  # For future implementation
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Error generating invite code: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+@api_router.post("/join")
+async def join_class_via_invite(
+    join_data: JoinClassRequest,
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Join a class using invite code."""
+    try:
+        # Validate invite code
+        class_info = await supabase_service.validate_invite_code(join_data.invite_code)
+        
+        if not class_info:
+            raise HTTPException(status_code=404, detail="Invalid invite code")
+        
+        # Add user to class as student
+        success = await supabase_service.add_user_to_class(
+            current_user['id'],
+            class_info['id'],
+            class_info['school_id'],
+            'student'
+        )
+        
+        if not success:
+            raise HTTPException(status_code=400, detail="Failed to join class")
+        
+        return {
+            "message": f"Successfully joined class: {class_info['name']}",
+            "class": class_info,
+            "school": class_info['schools']
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Error joining class: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+@api_router.get("/user/context")
+async def get_user_context(
+    authorization: str = Header(...),
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Get user's current school/class context."""
+    try:
+        client = get_user_client(authorization)
+        memberships = await get_user_memberships(current_user['id'], client)
+        
+        if not memberships:
+            return {"memberships": [], "current_context": None}
+        
+        # Return first membership as current context (TODO: add switching)
+        return {
+            "memberships": memberships,
+            "current_context": memberships[0]
+        }
+        
+    except Exception as e:
+        logging.error(f"Error fetching user context: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
 
 @api_router.get("/habits")
-async def get_habits(current_user: User = Depends(get_current_user)):
-    habits = await db.habits.find({"user_id": current_user.id}).to_list(1000)
-    
-    # Get today's logs and stats for each habit
-    today = date.today()
-    result = []
-    
-    for habit_doc in habits:
-        habit = Habit(**habit_doc)
+async def get_habits(
+    authorization: str = Header(...),
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Get user's habits with stats and recent logs."""
+    try:
+        client = get_user_client(authorization)
         
-        # Get today's log
-        today_log = await db.habit_logs.find_one({
-            "habit_id": habit.id,
-            "date": today.isoformat()
-        })
+        # Get user's habits
+        result = client.table('habits').select('*').eq('user_id', current_user['id']).execute()
+        habits = result.data or []
         
-        # Get last 7 days of logs for status bar
-        seven_days_ago = today - timedelta(days=6)
-        recent_logs = await db.habit_logs.find({
-            "habit_id": habit.id,
-            "date": {"$gte": seven_days_ago.isoformat(), "$lte": today.isoformat()}
-        }).to_list(7)
+        # Get today's date
+        today = date.today()
         
-        # Get or calculate stats
-        stats_doc = await db.habit_stats.find_one({"habit_id": habit.id})
-        if not stats_doc:
-            current_streak, best_streak = await calculate_streak(habit.id)
-            total_logs = await db.habit_logs.count_documents({"habit_id": habit.id})
-            completed_logs = await db.habit_logs.count_documents({"habit_id": habit.id, "completed": True})
-            percent_complete = (completed_logs / total_logs * 100) if total_logs > 0 else 0
+        # Process each habit
+        habit_data = []
+        for habit in habits:
+            # Get today's log
+            today_log_result = client.table('habit_logs').select('*').eq(
+                'habit_id', habit['id']
+            ).eq('occurred_on', str(today)).execute()
             
-            stats_doc = {
-                "habit_id": habit.id,
-                "current_streak": current_streak,
-                "best_streak": best_streak,
-                "percent_complete": percent_complete,
-                "updated_at": datetime.utcnow()
-            }
-            await db.habit_stats.insert_one(stats_doc)
+            today_completed = bool(today_log_result.data and today_log_result.data[0]['completed'])
+            
+            # Get last 7 days of logs
+            seven_days_ago = today - timedelta(days=6)
+            recent_logs_result = client.table('habit_logs').select('*').eq(
+                'habit_id', habit['id']
+            ).gte('occurred_on', str(seven_days_ago)).lte(
+                'occurred_on', str(today)
+            ).order('occurred_on').execute()
+            
+            recent_logs = recent_logs_result.data or []
+            
+            # Calculate stats
+            stats = await calculate_habit_stats(habit['id'], client)
+            
+            habit_data.append({
+                'habit': habit,
+                'today_completed': today_completed,
+                'recent_logs': recent_logs,
+                'stats': stats
+            })
         
-        result.append({
-            "habit": habit.dict(),
-            "today_completed": today_log["completed"] if today_log else False,
-            "recent_logs": recent_logs,
-            "stats": HabitStats(**stats_doc).dict()
-        })
-    
-    return result
+        return habit_data
+        
+    except Exception as e:
+        logging.error(f"Error fetching habits: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
 
 @api_router.post("/habits", status_code=201)
-async def create_habit(habit_data: HabitCreate, current_user: User = Depends(get_current_user)):
-    # Map frontend fields to backend fields
-    start_date = habit_data.startDate or date.today()
-    frequency = habit_data.repeats  # Map 'repeats' to 'frequency'
-    
-    habit_doc = {
-        "id": str(uuid.uuid4()),
-        "user_id": current_user.id,
-        "title": habit_data.name,  # Map 'name' to 'title'
-        "frequency": frequency,
-        "start_date": start_date.isoformat(),
-        "created_at": datetime.utcnow()
-    }
-    
-    await db.habits.insert_one(habit_doc)
-    
-    # Return the habit with recent_logs array for consistency
-    created_habit = Habit(**habit_doc)
-    return {
-        "habit": created_habit.dict(),
-        "today_completed": False,
-        "recent_logs": [],
-        "stats": {
-            "habit_id": created_habit.id,
-            "current_streak": 0,
-            "best_streak": 0,
-            "percent_complete": 0.0
+async def create_habit(
+    habit_data: HabitCreate,
+    authorization: str = Header(...),
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Create a new habit."""
+    try:
+        client = get_user_client(authorization)
+        
+        # Get user's context
+        context = await get_primary_context(current_user['id'], client)
+        
+        # Create habit
+        habit_doc = {
+            'user_id': current_user['id'],
+            'school_id': context['school_id'],
+            'class_id': context['class_id'],
+            'title': habit_data.name,
+            'frequency': habit_data.repeats,
+            'start_date': str(habit_data.startDate or date.today())
         }
-    }
+        
+        result = client.table('habits').insert(habit_doc).execute()
+        
+        if not result.data:
+            raise HTTPException(status_code=400, detail="Failed to create habit")
+        
+        created_habit = result.data[0]
+        
+        return {
+            'habit': created_habit,
+            'today_completed': False,
+            'recent_logs': [],
+            'stats': {
+                'current_streak': 0,
+                'best_streak': 0,
+                'percent_complete': 0.0
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Error creating habit: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
 
 @api_router.post("/habits/{habit_id}/log")
-async def log_habit(habit_id: str, log_data: HabitLogCreate, current_user: User = Depends(get_current_user)):
-    # Verify habit belongs to user
-    habit = await db.habits.find_one({"id": habit_id, "user_id": current_user.id})
-    if not habit:
-        raise HTTPException(status_code=404, detail="Habit not found")
-    
-    # Check if log already exists for this date
-    existing_log = await db.habit_logs.find_one({
-        "habit_id": habit_id,
-        "date": log_data.date.isoformat()
-    })
-    
-    if existing_log:
-        # Update existing log
-        await db.habit_logs.update_one(
-            {"id": existing_log["id"]},
-            {"$set": {"completed": log_data.completed}}
-        )
-        log_doc = await db.habit_logs.find_one({"id": existing_log["id"]})
-    else:
-        # Create new log
-        log_doc = {
-            "id": str(uuid.uuid4()),
-            "habit_id": habit_id,
-            "date": log_data.date.isoformat(),
-            "completed": log_data.completed,
-            "created_at": datetime.utcnow()
-        }
-        await db.habit_logs.insert_one(log_doc)
-    
-    # Update stats
-    current_streak, best_streak = await calculate_streak(habit_id)
-    total_logs = await db.habit_logs.count_documents({"habit_id": habit_id})
-    completed_logs = await db.habit_logs.count_documents({"habit_id": habit_id, "completed": True})
-    percent_complete = (completed_logs / total_logs * 100) if total_logs > 0 else 0
-    
-    await db.habit_stats.update_one(
-        {"habit_id": habit_id},
-        {"$set": {
-            "current_streak": current_streak,
-            "best_streak": best_streak,
-            "percent_complete": percent_complete,
-            "updated_at": datetime.utcnow()
-        }},
-        upsert=True
-    )
-    
-    return HabitLog(**log_doc)
-
-@api_router.get("/classes/{class_id}/analytics")
-async def get_class_analytics(class_id: str, current_user: User = Depends(get_current_user)):
-    # Verify user is teacher and owns this class
-    if current_user.role != "teacher":
-        raise HTTPException(status_code=403, detail="Only teachers can access class analytics")
-    
-    class_doc = await db.classes.find_one({"id": class_id, "teacher_id": current_user.id})
-    if not class_doc:
-        raise HTTPException(status_code=404, detail="Class not found or access denied")
-    
-    # Get all students in this class
-    students = await db.users.find({"class_id": class_id, "role": "student"}).to_list(1000)
-    
-    analytics = []
-    for student in students:
-        # Get student's habits
-        habits = await db.habits.find({"user_id": student["id"]}).to_list(1000)
+async def log_habit(
+    habit_id: str,
+    log_data: HabitLogCreate,
+    authorization: str = Header(...),
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Log habit completion."""
+    try:
+        client = get_user_client(authorization)
         
-        # Calculate analytics
-        total_habits = len(habits)
-        active_habits = 0
-        best_current_streak = 0
-        total_completion_rate = 0
-        last_activity = None
+        # Verify habit belongs to user
+        habit_result = client.table('habits').select('*').eq(
+            'id', habit_id
+        ).eq('user_id', current_user['id']).execute()
         
-        for habit in habits:
-            # Get stats
-            stats = await db.habit_stats.find_one({"habit_id": habit["id"]})
-            if stats:
-                if stats["current_streak"] > 0:
-                    active_habits += 1
-                best_current_streak = max(best_current_streak, stats["current_streak"])
-                total_completion_rate += stats["percent_complete"]
+        if not habit_result.data:
+            raise HTTPException(status_code=404, detail="Habit not found")
         
-        # Get last activity
-        last_log = await db.habit_logs.find_one(
-            {"habit_id": {"$in": [h["id"] for h in habits]}},
-            sort=[("created_at", -1)]
-        )
-        if last_log:
-            last_activity = last_log["created_at"]
+        # Check if log already exists
+        existing_log_result = client.table('habit_logs').select('*').eq(
+            'habit_id', habit_id
+        ).eq('occurred_on', str(log_data.date)).execute()
         
-        average_completion_rate = total_completion_rate / total_habits if total_habits > 0 else 0
+        if existing_log_result.data:
+            # Update existing log
+            result = client.table('habit_logs').update({
+                'completed': log_data.completed
+            }).eq('id', existing_log_result.data[0]['id']).execute()
+            
+            return result.data[0] if result.data else existing_log_result.data[0]
+        else:
+            # Create new log
+            log_doc = {
+                'habit_id': habit_id,
+                'user_id': current_user['id'],
+                'occurred_on': str(log_data.date),
+                'completed': log_data.completed
+            }
+            
+            result = client.table('habit_logs').insert(log_doc).execute()
+            
+            if not result.data:
+                raise HTTPException(status_code=400, detail="Failed to log habit")
+            
+            return result.data[0]
         
-        analytics.append(StudentAnalytics(
-            student_name=student["name"],
-            student_email=student["email"],
-            total_habits=total_habits,
-            active_habits=active_habits,
-            best_current_streak=best_current_streak,
-            average_completion_rate=round(average_completion_rate, 1),
-            last_activity=last_activity
-        ))
-    
-    return {
-        "class_name": class_doc["name"],
-        "total_students": len(students),
-        "analytics": analytics
-    }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Error logging habit: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
 
 @api_router.get("/my-class/feed")
-async def get_class_feed(current_user: User = Depends(get_current_user)):
-    # Get all users in the same class
-    class_members = await db.users.find({"class_id": current_user.class_id}).to_list(1000)
-    
-    feed_data = []
-    for member in class_members:
-        # Get member's habits
-        habits = await db.habits.find({"user_id": member["id"]}).to_list(1000)
+async def get_class_feed(
+    authorization: str = Header(...),
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Get class member feed with habit progress."""
+    try:
+        client = get_user_client(authorization)
         
-        # Calculate member's best current streak and completion rate
-        best_current_streak = 0
-        total_completion_rate = 0
-        active_habits = 0
+        # Get user's context
+        context = await get_primary_context(current_user['id'], client)
+        class_id = context.get('class_id')
         
-        for habit in habits:
-            stats = await db.habit_stats.find_one({"habit_id": habit["id"]})
-            if stats:
-                best_current_streak = max(best_current_streak, stats["current_streak"])
-                total_completion_rate += stats["percent_complete"]
-                if stats["current_streak"] > 0:
+        if not class_id:
+            return []
+        
+        # Get all members in the same class
+        members_result = client.table('memberships').select(
+            'user_id, role'
+        ).eq('class_id', class_id).execute()
+        
+        members = members_result.data or []
+        
+        feed_data = []
+        for member in members:
+            # Get member's habits
+            habits_result = client.table('habits').select('id').eq(
+                'user_id', member['user_id']
+            ).execute()
+            
+            habits = habits_result.data or []
+            
+            # Calculate aggregate stats
+            total_habits = len(habits)
+            best_current_streak = 0
+            total_completion_rate = 0
+            active_habits = 0
+            
+            for habit in habits:
+                stats = await calculate_habit_stats(habit['id'], client)
+                best_current_streak = max(best_current_streak, stats['current_streak'])
+                total_completion_rate += stats['percent_complete']
+                if stats['current_streak'] > 0:
                     active_habits += 1
+            
+            average_completion_rate = total_completion_rate / total_habits if total_habits > 0 else 0
+            
+            # Get recent activity
+            recent_activity = "No recent activity"
+            if habits:
+                recent_log_result = client.table('habit_logs').select('created_at').in_(
+                    'habit_id', [h['id'] for h in habits]
+                ).order('created_at', desc=True).limit(1).execute()
+                
+                if recent_log_result.data:
+                    created_at = datetime.fromisoformat(recent_log_result.data[0]['created_at'].replace('Z', '+00:00'))
+                    days_ago = (datetime.utcnow() - created_at).days
+                    if days_ago == 0:
+                        recent_activity = "Active today"
+                    elif days_ago == 1:
+                        recent_activity = "Active yesterday"
+                    else:
+                        recent_activity = f"Active {days_ago} days ago"
+            
+            # Get user info from auth
+            # Note: In real implementation, you'd store user profiles
+            user_name = f"User {member['user_id'][:8]}"  # Placeholder
+            
+            feed_data.append({
+                'name': user_name,
+                'role': member['role'],
+                'current_best_streak': best_current_streak,
+                'total_habits': total_habits,
+                'completion_rate': round(average_completion_rate, 1),
+                'recent_activity': recent_activity
+            })
         
-        average_completion_rate = total_completion_rate / len(habits) if habits else 0
+        # Sort by streak
+        feed_data.sort(key=lambda x: x['current_best_streak'], reverse=True)
         
-        # Get recent activity
-        recent_activity = "No recent activity"
-        if habits:
-            recent_log = await db.habit_logs.find_one(
-                {"habit_id": {"$in": [h["id"] for h in habits]}},
-                sort=[("created_at", -1)]
-            )
-            if recent_log:
-                days_ago = (datetime.utcnow() - recent_log["created_at"]).days
-                if days_ago == 0:
-                    recent_activity = "Active today"
-                elif days_ago == 1:
-                    recent_activity = "Active yesterday"
-                else:
-                    recent_activity = f"Active {days_ago} days ago"
+        return feed_data
         
-        feed_data.append(ClassMemberData(
-            name=member["name"],
-            role=member["role"],
-            current_best_streak=best_current_streak,
-            total_habits=len(habits),
-            completion_rate=round(average_completion_rate, 1),
-            recent_activity=recent_activity
-        ))
-    
-    # Sort by current best streak descending
-    feed_data.sort(key=lambda x: x.current_best_streak, reverse=True)
-    
-    return feed_data
+    except Exception as e:
+        logging.error(f"Error fetching class feed: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
 
 @api_router.get("/my-class/info")
-async def get_class_info(current_user: User = Depends(get_current_user)):
-    class_doc = await db.classes.find_one({"id": current_user.class_id})
-    if not class_doc:
-        raise HTTPException(status_code=404, detail="Class not found")
-    
-    # Get teacher info
-    teacher = await db.users.find_one({"id": class_doc["teacher_id"]})
-    teacher_name = teacher["name"] if teacher else "Unknown"
-    
-    # Get student count
-    student_count = await db.users.count_documents({"class_id": current_user.class_id, "role": "student"})
-    
-    return {
-        "class_name": class_doc["name"],
-        "teacher_name": teacher_name,
-        "student_count": student_count,
-        "your_role": current_user.role
-    }
+async def get_class_info(
+    authorization: str = Header(...),
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Get current class information."""
+    try:
+        client = get_user_client(authorization)
+        context = await get_primary_context(current_user['id'], client)
+        
+        # Get student count
+        student_count_result = client.table('memberships').select('user_id').eq(
+            'class_id', context['class_id']
+        ).eq('role', 'student').execute()
+        
+        student_count = len(student_count_result.data or [])
+        
+        # Get teacher info
+        teacher_result = client.table('memberships').select('user_id').eq(
+            'class_id', context['class_id']
+        ).eq('role', 'teacher').execute()
+        
+        teacher_name = "Unknown"
+        if teacher_result.data:
+            # In real implementation, get actual teacher name
+            teacher_name = f"Teacher {teacher_result.data[0]['user_id'][:8]}"
+        
+        return {
+            'class_name': context['classes']['name'] if context.get('classes') else 'Unknown Class',
+            'teacher_name': teacher_name,
+            'student_count': student_count,
+            'your_role': context['role']
+        }
+        
+    except Exception as e:
+        logging.error(f"Error fetching class info: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
 
 # Include the router in the main app
 app.include_router(api_router)
@@ -515,6 +658,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-@app.on_event("shutdown")
-async def shutdown_db_client():
-    client.close()
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8001)
