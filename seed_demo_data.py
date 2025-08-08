@@ -27,12 +27,24 @@ def clean_existing_demo_data():
     """Clean up any existing demo data"""
     print("🧹 Cleaning existing demo data...")
     
-    # Delete in reverse dependency order
-    supabase.table('habit_logs').delete().like('user_id', 'demo-%').execute()
-    supabase.table('habits').delete().like('user_id', 'demo-%').execute()  
-    supabase.table('memberships').delete().like('user_id', 'demo-%').execute()
-    supabase.table('classes').delete().like('name', 'Demo %').execute()
-    supabase.table('schools').delete().eq('name', 'Demo Academy').execute()
+    # Delete in reverse dependency order using exact matches
+    try:
+        # Clean habit logs for demo users
+        demo_users = ['demo-admin-001', 'demo-teacher-001', 'demo-teacher-002', 
+                     'demo-student-001', 'demo-student-002', 'demo-student-003']
+        
+        for user_id in demo_users:
+            supabase.table('habit_logs').delete().eq('user_id', user_id).execute()
+            supabase.table('habits').delete().eq('user_id', user_id).execute()
+            supabase.table('memberships').delete().eq('user_id', user_id).execute()
+        
+        # Clean classes and school
+        supabase.table('classes').delete().eq('id', 'demo-class-001').execute()
+        supabase.table('classes').delete().eq('id', 'demo-class-002').execute()
+        supabase.table('schools').delete().eq('id', 'demo-school-001').execute()
+        
+    except Exception as e:
+        print(f"⚠️  Cleanup warning (probably no existing data): {e}")
     
     print("✅ Cleanup complete")
 
