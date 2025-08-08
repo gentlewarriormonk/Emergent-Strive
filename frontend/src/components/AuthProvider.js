@@ -38,10 +38,11 @@ export const AuthProvider = ({ children }) => {
   }, [])
 
   const signInWithMagicLink = async (email) => {
+    const redirectTo = `${window.location.origin}/auth/callback`
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: 'https://emergent-strive.vercel.app/auth/callback'
+        emailRedirectTo: redirectTo
       }
     })
     
@@ -51,11 +52,12 @@ export const AuthProvider = ({ children }) => {
   }
 
   const resendMagicLink = async (email) => {
+    const redirectTo = `${window.location.origin}/auth/callback`
     const { error } = await supabase.auth.resend({
       type: 'signup',
       email,
       options: {
-        emailRedirectTo: 'https://emergent-strive.vercel.app/auth/callback'
+        emailRedirectTo: redirectTo
       }
     })
     
