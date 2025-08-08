@@ -144,7 +144,7 @@ const TeacherDashboardPage = () => {
   );
 };
 
-// Join Class Component (unchanged)
+// Join Class Component
 const JoinClass = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -223,7 +223,7 @@ const JoinClass = () => {
   );
 };
 
-// School Management Component (unchanged)
+// School Management Component
 const SchoolManagement = ({ onSchoolCreated }) => {
   const [showCreateSchool, setShowCreateSchool] = useState(false);
   const [schoolName, setSchoolName] = useState('');
@@ -311,7 +311,7 @@ const SchoolManagement = ({ onSchoolCreated }) => {
   );
 };
 
-// Enhanced HabitCard with real-time updates (unchanged from previous implementation)
+// Enhanced HabitCard with real-time updates
 const HabitCard = ({ habitData, onToggle }) => {
   const { habit, today_completed, stats, recent_logs = [] } = habitData;
   const [isAnimating, setIsAnimating] = useState(false);
@@ -415,7 +415,7 @@ const HabitCard = ({ habitData, onToggle }) => {
   );
 };
 
-// Enhanced AddHabitModal (unchanged from previous implementation)
+// Enhanced AddHabitModal
 const AddHabitModal = ({ isOpen, onClose, onHabitAdded }) => {
   const [formData, setFormData] = useState({
     name: '',
@@ -534,7 +534,7 @@ const AddHabitModal = ({ isOpen, onClose, onHabitAdded }) => {
   );
 };
 
-// Main Dashboard Component (updated for student/general users)
+// Main Dashboard Component (student view)
 const Dashboard = () => {
   const [habits, setHabits] = useState([]);
   const [showAddForm, setShowAddForm] = useState(false);
