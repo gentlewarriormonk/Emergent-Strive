@@ -127,7 +127,12 @@ const AuthCallback = () => {
       <div className="min-h-screen bg-surface flex items-center justify-center">
         <div className="bg-card rounded-2xl p-8 max-w-md w-full mx-4 text-center border border-gray-700">
           <div className="flex items-center justify-center space-x-3 mb-6">
-            <img src="/strive-logo.svg" alt="Strive" className="w-10 h-10 animate-spin" />
+            <img 
+              src="/strive-logo-white-on-transparent.png" 
+              alt="Strive" 
+              className="w-10 h-10 animate-spin"
+              style={{ width: '160px', maxWidth: '160px' }}
+            />
             <h1 className="text-2xl font-bold text-white">Strive</h1>
           </div>
           <div className="space-y-4">
