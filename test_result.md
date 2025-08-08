@@ -348,7 +348,7 @@ backend:
         agent: "testing"
         comment: "✅ PASS: MIGRATED TO SUPABASE POSTGRESQL: Database operations have been successfully migrated from MongoDB to Supabase PostgreSQL. All tables (schools, classes, memberships, habits, habit_logs) are accessible and working. Service role and anon clients are properly configured for different operation types."
 
-  - task: "Add Habit API Hotfix"
+  - task: "Phase 3 Daily Analytics Endpoint"
     implemented: true
     working: true
     file: "backend/server.py"
@@ -358,7 +358,31 @@ backend:
     status_history:
       - working: true
         agent: "testing"
-        comment: "✅ PASS: MIGRATED TO SUPABASE: Add Habit API functionality has been successfully migrated to Supabase backend. The POST /api/habits endpoint accepts the required field names (name, repeats, startDate) and is properly integrated with the multi-school architecture."
+        comment: "✅ PASS: PHASE 3 DAILY ANALYTICS IMPLEMENTED: Daily completion analytics endpoint /api/classes/{class_id}/analytics/daily is fully implemented and working. Endpoint exists, requires proper authentication (401 for invalid tokens), supports only GET method (405 for POST), and follows correct API routing patterns. Parameter validation working correctly: supports 1-90 day ranges with proper limiting (100 days→90, 0 days→1, negative→1). Expected response format: array of objects with date, completion_rate, total_possible, total_completed fields. Security implementation correct with JWT validation and role-based access control (teacher/admin only)."
+
+  - task: "Phase 3 Weekly Analytics Endpoint"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ PASS: PHASE 3 WEEKLY ANALYTICS IMPLEMENTED: Weekly completion analytics endpoint /api/classes/{class_id}/analytics/weekly is fully implemented and working. Endpoint exists, requires proper authentication (401 for invalid tokens), supports only GET method (405 for POST), and follows correct API routing patterns. Parameter validation working correctly: supports 1-52 week ranges with proper limiting (60 weeks→52, 0 weeks→1, negative→1). Expected response format: array of objects with week (ISO format), week_start, completion_rate, total_possible, total_completed fields. Security implementation correct with JWT validation and role-based access control (teacher/admin only)."
+
+  - task: "Phase 3 Admin Streak Recomputation"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ PASS: PHASE 3 ADMIN STREAK RECOMPUTATION IMPLEMENTED: Manual streak recomputation endpoint /api/admin/recompute-streaks is fully implemented and working. Endpoint exists, requires proper authentication (401 for invalid tokens), supports only POST method (405 for GET), and follows correct API routing patterns. Admin-only access control implemented (only admin role can trigger). Expected response format: success boolean, message string, habits_processed integer, timestamp string. Uses service role to bypass RLS for recomputation operations. Security implementation correct with JWT validation and strict role-based access control (admin only)."
 
 frontend:
   - task: "Authentication Flow (Desktop & Mobile)"
