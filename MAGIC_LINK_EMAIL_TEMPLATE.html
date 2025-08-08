@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Log in to Strive</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #1a1a1a;
+            color: #ffffff;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #1a1a1a;
+            padding: 40px 20px;
+        }
+        .card {
+            background-color: #2a2a2a;
+            border-radius: 16px;
+            padding: 40px;
+            border: 1px solid #3a3a3a;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+        .logo {
+            width: 180px;
+            height: auto;
+            margin: 0 auto 20px;
+            display: block;
+        }
+        .title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #ffffff;
+            margin: 0 0 8px 0;
+        }
+        .subtitle {
+            font-size: 16px;
+            color: #a0a0a0;
+            margin: 0;
+        }
+        .content {
+            margin-bottom: 32px;
+        }
+        .greeting {
+            font-size: 18px;
+            color: #ffffff;
+            margin-bottom: 16px;
+            line-height: 1.5;
+        }
+        .message {
+            font-size: 16px;
+            color: #d0d0d0;
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+        .button-container {
+            text-align: center;
+            margin: 32px 0;
+        }
+        .login-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
+            color: #ffffff;
+            text-decoration: none;
+            padding: 16px 32px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+            transition: all 0.2s ease;
+        }
+        .login-button:hover {
+            background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(59, 130, 246, 0.5);
+        }
+        .security-note {
+            font-size: 14px;
+            color: #888888;
+            text-align: center;
+            margin-top: 24px;
+            padding: 16px;
+            background-color: #252525;
+            border-radius: 8px;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 32px;
+            font-size: 14px;
+            color: #666666;
+        }
+        .footer a {
+            color: #3b82f6;
+            text-decoration: none;
+        }
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px 10px;
+            }
+            .card {
+                padding: 24px 20px;
+            }
+            .logo {
+                width: 160px;
+            }
+            .title {
+                font-size: 20px;
+            }
+            .login-button {
+                padding: 14px 28px;
+                font-size: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="header">
+                <img src="https://emergent-strive.vercel.app/strive-full-colour-with-padding.png" alt="Strive Logo" class="logo">
+                <h1 class="title">Log in to Strive</h1>
+                <p class="subtitle">Multi-school habit tracking</p>
+            </div>
+            
+            <div class="content">
+                <div class="greeting">Hello!</div>
+                <div class="message">
+                    You requested to sign in to your Strive account. Click the button below to log in securely.
+                </div>
+            </div>
+            
+            <div class="button-container">
+                <a href="{{ .ConfirmationURL }}" class="login-button" role="button" 
+                   style="color: #ffffff; text-decoration: none;">
+                    Log in to Strive
+                </a>
+            </div>
+            
+            <div class="security-note">
+                <strong>Security Notice:</strong> This link will expire in 1 hour for your security. 
+                If you didn't request this login, you can safely ignore this email.
+            </div>
+            
+            <div class="footer">
+                <p>
+                    Need help? Contact us at 
+                    <a href="mailto:support@strive.app">support@strive.app</a>
+                </p>
+                <p style="margin-top: 16px; color: #555555;">
+                    If the button doesn't work, copy and paste this link into your browser:<br>
+                    <span style="word-break: break-all; color: #3b82f6;">{{ .ConfirmationURL }}</span>
+                </p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
