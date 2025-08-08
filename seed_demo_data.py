@@ -52,30 +52,34 @@ def create_demo_school():
     """Create demo school"""
     print("🏫 Creating demo school...")
     
+    school_id = str(uuid.uuid4())
     school_data = {
-        'id': 'demo-school-001',
+        'id': school_id,
         'name': 'Demo Academy',
         'created_at': datetime.utcnow().isoformat()
     }
     
     result = supabase.table('schools').insert(school_data).execute()
-    print(f"✅ Created school: {result.data[0]['name']}")
-    return result.data[0]['id']
+    print(f"✅ Created school: {result.data[0]['name']} (ID: {school_id})")
+    return school_id
 
 def create_demo_classes(school_id):
     """Create 2 demo classes"""
     print("📚 Creating demo classes...")
     
+    class_a_id = str(uuid.uuid4())
+    class_b_id = str(uuid.uuid4())
+    
     classes_data = [
         {
-            'id': 'demo-class-001',
+            'id': class_a_id,
             'school_id': school_id,
             'name': 'Demo Class A - Mathematics',
             'invite_code': 'DEMO-MATH-A',
             'created_at': datetime.utcnow().isoformat()
         },
         {
-            'id': 'demo-class-002', 
+            'id': class_b_id, 
             'school_id': school_id,
             'name': 'Demo Class B - Science',
             'invite_code': 'DEMO-SCI-B',
@@ -94,7 +98,7 @@ def create_demo_users_and_memberships(school_id, class_ids):
     users = [
         # Admin
         {
-            'user_id': 'demo-admin-001',
+            'user_id': str(uuid.uuid4()),
             'school_id': school_id,
             'class_id': None,
             'role': 'admin',
@@ -103,7 +107,7 @@ def create_demo_users_and_memberships(school_id, class_ids):
         },
         # Teachers 
         {
-            'user_id': 'demo-teacher-001',
+            'user_id': str(uuid.uuid4()),
             'school_id': school_id, 
             'class_id': class_ids['Demo Class A - Mathematics'],
             'role': 'teacher',
@@ -111,7 +115,7 @@ def create_demo_users_and_memberships(school_id, class_ids):
             'email': 'bob.teacher@demo.com'
         },
         {
-            'user_id': 'demo-teacher-002',
+            'user_id': str(uuid.uuid4()),
             'school_id': school_id,
             'class_id': class_ids['Demo Class B - Science'], 
             'role': 'teacher',
@@ -120,7 +124,7 @@ def create_demo_users_and_memberships(school_id, class_ids):
         },
         # Students
         {
-            'user_id': 'demo-student-001',
+            'user_id': str(uuid.uuid4()),
             'school_id': school_id,
             'class_id': class_ids['Demo Class A - Mathematics'],
             'role': 'student', 
@@ -128,7 +132,7 @@ def create_demo_users_and_memberships(school_id, class_ids):
             'email': 'david.student@demo.com'
         },
         {
-            'user_id': 'demo-student-002',
+            'user_id': str(uuid.uuid4()),
             'school_id': school_id,
             'class_id': class_ids['Demo Class A - Mathematics'],
             'role': 'student',
@@ -136,7 +140,7 @@ def create_demo_users_and_memberships(school_id, class_ids):
             'email': 'emma.student@demo.com'
         },
         {
-            'user_id': 'demo-student-003',
+            'user_id': str(uuid.uuid4()),
             'school_id': school_id,
             'class_id': class_ids['Demo Class B - Science'],
             'role': 'student',
@@ -180,7 +184,7 @@ def create_demo_habits(users, school_id, class_ids):
         # Give each student 2 habits
         for j in range(2):
             habit = {
-                'id': f'demo-habit-{i+1}-{j+1}',
+                'id': str(uuid.uuid4()),
                 'school_id': school_id,
                 'class_id': student['class_id'],
                 'user_id': student['user_id'],
@@ -202,12 +206,15 @@ def create_demo_habit_logs(habits, users):
     logs_data = []
     today = date.today()
     
-    # Define streak patterns for different students
-    streak_patterns = {
-        'demo-student-001': [True, True, True, True, True, True, True],    # 7-day streak
-        'demo-student-002': [True, True, True, False, True, True, True],   # 3-day current streak  
-        'demo-student-003': [True, True, False, False, True, True, False], # 2-day current streak
-    }
+    # Define streak patterns for different students by name for easier identification
+    streak_patterns = {}
+    for user in users:
+        if user['name'] == 'David Student':
+            streak_patterns[user['user_id']] = [True, True, True, True, True, True, True]    # 7-day streak
+        elif user['name'] == 'Emma Student':  
+            streak_patterns[user['user_id']] = [True, True, True, False, True, True, True]   # 3-day current streak
+        elif user['name'] == 'Frank Student':
+            streak_patterns[user['user_id']] = [True, True, False, False, True, True, False] # 2-day current streak
     
     for habit in habits:
         user_id = habit['user_id']
@@ -218,7 +225,7 @@ def create_demo_habit_logs(habits, users):
             log_date = today - timedelta(days=6-i)  # 7 days ago to today
             
             log = {
-                'id': f'demo-log-{habit["id"]}-{i}',
+                'id': str(uuid.uuid4()),
                 'habit_id': habit['id'],
                 'user_id': user_id,
                 'occurred_on': log_date.isoformat(),
@@ -232,15 +239,17 @@ def create_demo_habit_logs(habits, users):
     
     # Print streak summary
     print("\n📈 Streak Summary:")
-    for user_id, pattern in streak_patterns.items():
-        current_streak = 0
-        for completed in reversed(pattern):  # Count from today backward
-            if completed:
-                current_streak += 1
-            else:
-                break
-        user_name = next(u['name'] for u in users if u['user_id'] == user_id)
-        print(f"  {user_name}: {current_streak}-day current streak")
+    for user in users:
+        if user['role'] == 'student':
+            pattern = streak_patterns.get(user['user_id'], [])
+            if pattern:
+                current_streak = 0
+                for completed in reversed(pattern):  # Count from today backward
+                    if completed:
+                        current_streak += 1
+                    else:
+                        break
+                print(f"  {user['name']}: {current_streak}-day current streak")
     
     return result.data
 
