@@ -195,7 +195,11 @@ const JoinClass = () => {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex items-center justify-center space-x-3 mb-4">
-            <img src="/strive-logo.svg" alt="Strive" className="w-10 h-10" />
+            <img 
+              src="/strive-logo-white-on-transparent.png" 
+              alt="Strive" 
+              style={{ width: '160px', maxWidth: '160px' }}
+            />
             <h1 className="text-2xl font-bold text-white">Join Class</h1>
           </div>
         </CardHeader>
