@@ -237,8 +237,8 @@ class ClassBasedHabitTrackerTester:
             self.log_result("class_features", "Class Feed Endpoint", False, f"Exception: {str(e)}")
     
     def test_teacher_analytics_endpoint(self):
-        """Test teacher analytics endpoint /classes/{class_id}/analytics"""
-        print("\n=== Testing Teacher Analytics Endpoint ===")
+        """Test enhanced teacher analytics endpoint /classes/{class_id}/analytics (Phase 2)"""
+        print("\n=== Testing Enhanced Teacher Analytics Endpoint (Phase 2) ===")
         
         # Find teacher user
         teacher_email = None
@@ -250,7 +250,7 @@ class ClassBasedHabitTrackerTester:
                 break
         
         if not teacher_email or not teacher_class_id:
-            self.log_result("class_features", "Teacher Analytics Endpoint", False, "No teacher user or class available")
+            self.log_result("class_features", "Enhanced Teacher Analytics", False, "No teacher user or class available")
             return
         
         teacher_token = self.test_tokens[teacher_email]
@@ -260,22 +260,40 @@ class ClassBasedHabitTrackerTester:
             response = requests.get(f"{self.base_url}/classes/{teacher_class_id}/analytics", headers=headers)
             if response.status_code == 200:
                 data = response.json()
-                required_fields = ["class_name", "total_students", "analytics"]
+                # Phase 2 enhanced fields
+                required_fields = ["class_name", "total_students", "average_daily_completion", "top_3_streaks", "analytics"]
                 if all(field in data for field in required_fields):
-                    if isinstance(data["analytics"], list):
-                        self.log_result("class_features", "Teacher Analytics Endpoint", True, 
-                                      f"Retrieved analytics for {data['total_students']} students")
+                    # Validate Phase 2 enhancements
+                    if isinstance(data["analytics"], list) and isinstance(data["top_3_streaks"], list):
+                        # Check if average_daily_completion is a number
+                        if isinstance(data["average_daily_completion"], (int, float)):
+                            # Validate top_3_streaks structure
+                            valid_streaks = True
+                            for streak in data["top_3_streaks"]:
+                                if not all(key in streak for key in ["user_id", "streak", "habit_title"]):
+                                    valid_streaks = False
+                                    break
+                            
+                            if valid_streaks:
+                                self.log_result("class_features", "Enhanced Teacher Analytics", True, 
+                                              f"Phase 2 analytics: {data['total_students']} students, {data['average_daily_completion']}% avg completion, {len(data['top_3_streaks'])} top streaks")
+                            else:
+                                self.log_result("class_features", "Enhanced Teacher Analytics", False, 
+                                              "Invalid top_3_streaks structure")
+                        else:
+                            self.log_result("class_features", "Enhanced Teacher Analytics", False, 
+                                          "average_daily_completion is not a number")
                     else:
-                        self.log_result("class_features", "Teacher Analytics Endpoint", False, 
-                                      "Analytics field is not a list")
+                        self.log_result("class_features", "Enhanced Teacher Analytics", False, 
+                                      "Analytics or top_3_streaks field is not a list")
                 else:
-                    self.log_result("class_features", "Teacher Analytics Endpoint", False, 
-                                  f"Missing required fields in response: {data}")
+                    self.log_result("class_features", "Enhanced Teacher Analytics", False, 
+                                  f"Missing Phase 2 required fields in response: {list(set(required_fields) - set(data.keys()))}")
             else:
-                self.log_result("class_features", "Teacher Analytics Endpoint", False, 
+                self.log_result("class_features", "Enhanced Teacher Analytics", False, 
                               f"HTTP {response.status_code}: {response.text}")
         except Exception as e:
-            self.log_result("class_features", "Teacher Analytics Endpoint", False, f"Exception: {str(e)}")
+            self.log_result("class_features", "Enhanced Teacher Analytics", False, f"Exception: {str(e)}")
     
     def test_student_analytics_access_denied(self):
         """Test that students cannot access analytics endpoints"""
