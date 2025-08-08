@@ -856,6 +856,202 @@ async def export_class_csv(
         logging.error(f"Error exporting CSV: {e}")
         raise HTTPException(status_code=400, detail=str(e))
 
+@api_router.get("/classes/{class_id}/analytics/daily")
+async def get_daily_completion_analytics(
+    class_id: str,
+    days: int = 14,
+    authorization: str = Header(...),
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Get daily completion rate analytics for charts (teacher/admin only)."""
+    try:
+        client = get_user_client(authorization)
+        
+        # Verify user has permission
+        context = await get_primary_context(current_user['id'], client)
+        if context['role'] not in ['admin', 'teacher']:
+            raise HTTPException(status_code=403, detail="Only teachers and admins can access analytics")
+        
+        # Limit days to reasonable range
+        days = min(max(days, 1), 90)
+        
+        # Get all students in class
+        students_result = client.table('memberships').select('user_id').eq(
+            'class_id', class_id
+        ).eq('role', 'student').execute()
+        
+        students = students_result.data or []
+        
+        if not students:
+            return []
+        
+        # Generate daily data for the requested period
+        daily_data = []
+        today = date.today()
+        
+        for i in range(days):
+            check_date = today - timedelta(days=days-1-i)
+            
+            total_possible_logs = 0
+            total_completed_logs = 0
+            
+            for student in students:
+                user_id = student['user_id']
+                
+                # Get all habits for this student
+                habits_result = client.table('habits').select('id').eq(
+                    'user_id', user_id
+                ).execute()
+                
+                habits = habits_result.data or []
+                total_possible_logs += len(habits)
+                
+                # Check completion for this date
+                for habit in habits:
+                    log_result = client.table('habit_logs').select('completed').eq(
+                        'habit_id', habit['id']
+                    ).eq('occurred_on', str(check_date)).execute()
+                    
+                    if log_result.data and log_result.data[0]['completed']:
+                        total_completed_logs += 1
+            
+            completion_rate = (total_completed_logs / total_possible_logs * 100) if total_possible_logs > 0 else 0
+            
+            daily_data.append({
+                'date': str(check_date),
+                'completion_rate': round(completion_rate, 1),
+                'total_possible': total_possible_logs,
+                'total_completed': total_completed_logs
+            })
+        
+        return daily_data
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Error fetching daily analytics: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+@api_router.get("/classes/{class_id}/analytics/weekly")
+async def get_weekly_completion_analytics(
+    class_id: str,
+    weeks: int = 12,
+    authorization: str = Header(...),
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Get weekly completion rate analytics for charts (teacher/admin only)."""
+    try:
+        client = get_user_client(authorization)
+        
+        # Verify user has permission
+        context = await get_primary_context(current_user['id'], client)
+        if context['role'] not in ['admin', 'teacher']:
+            raise HTTPException(status_code=403, detail="Only teachers and admins can access analytics")
+        
+        # Limit weeks to reasonable range
+        weeks = min(max(weeks, 1), 52)
+        
+        # Get all students in class
+        students_result = client.table('memberships').select('user_id').eq(
+            'class_id', class_id
+        ).eq('role', 'student').execute()
+        
+        students = students_result.data or []
+        
+        if not students:
+            return []
+        
+        # Generate weekly data
+        weekly_data = []
+        today = date.today()
+        
+        for i in range(weeks):
+            # Calculate week start (Monday)
+            week_start = today - timedelta(days=today.weekday()) - timedelta(weeks=weeks-1-i)
+            week_end = week_start + timedelta(days=6)
+            
+            total_possible_logs = 0
+            total_completed_logs = 0
+            
+            for student in students:
+                user_id = student['user_id']
+                
+                # Get all habits for this student
+                habits_result = client.table('habits').select('id').eq(
+                    'user_id', user_id
+                ).execute()
+                
+                habits = habits_result.data or []
+                
+                # Check completion for the week
+                for habit in habits:
+                    logs_result = client.table('habit_logs').select('completed').eq(
+                        'habit_id', habit['id']
+                    ).gte('occurred_on', str(week_start)).lte(
+                        'occurred_on', str(week_end)
+                    ).execute()
+                    
+                    logs = logs_result.data or []
+                    total_possible_logs += 7  # 7 days per week
+                    total_completed_logs += sum(1 for log in logs if log['completed'])
+            
+            completion_rate = (total_completed_logs / total_possible_logs * 100) if total_possible_logs > 0 else 0
+            
+            # Format week as ISO week
+            year, week_num, _ = week_start.isocalendar()
+            
+            weekly_data.append({
+                'week': f"{year}-W{week_num:02d}",
+                'week_start': str(week_start),
+                'completion_rate': round(completion_rate, 1),
+                'total_possible': total_possible_logs,
+                'total_completed': total_completed_logs
+            })
+        
+        return weekly_data
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Error fetching weekly analytics: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+@api_router.post("/admin/recompute-streaks")
+async def manually_recompute_streaks(
+    authorization: str = Header(...),
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Manually trigger streak recomputation (admin only)."""
+    try:
+        client = get_user_client(authorization)
+        
+        # Verify user is admin
+        context = await get_primary_context(current_user['id'], client)
+        if context['role'] != 'admin':
+            raise HTTPException(status_code=403, detail="Only admins can trigger streak recomputation")
+        
+        # Use service role to execute the recomputation
+        result = supabase_service.admin_client.rpc('recompute_all_streaks').execute()
+        
+        if result.data is None and not result.error:
+            # Get count of processed habits
+            habits_count = supabase_service.admin_client.table('habits').select('*', count='exact', head=True).execute()
+            
+            return {
+                'success': True,
+                'message': 'Streak recomputation completed successfully',
+                'habits_processed': habits_count.count or 0,
+                'timestamp': datetime.utcnow().isoformat()
+            }
+        else:
+            raise HTTPException(status_code=500, detail=result.error.message if result.error else "Unknown error")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Error during manual streak recomputation: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+
 # Include the router in the main app
 app.include_router(api_router)
 
