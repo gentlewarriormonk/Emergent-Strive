@@ -27,21 +27,41 @@ def clean_existing_demo_data():
     """Clean up any existing demo data"""
     print("🧹 Cleaning existing demo data...")
     
-    # Delete in reverse dependency order using exact matches
+    # Clean by demo academy name and invite codes
     try:
-        # Clean habit logs for demo users
-        demo_users = ['demo-admin-001', 'demo-teacher-001', 'demo-teacher-002', 
-                     'demo-student-001', 'demo-student-002', 'demo-student-003']
+        # Find and clean demo school data
+        schools = supabase.table('schools').select('id').eq('name', 'Demo Academy').execute()
+        for school in schools.data:
+            school_id = school['id']
+            
+            # Clean classes first
+            classes = supabase.table('classes').select('id').eq('school_id', school_id).execute()
+            for class_item in classes.data:
+                class_id = class_item['id']
+                
+                # Clean memberships 
+                memberships = supabase.table('memberships').select('user_id').eq('school_id', school_id).execute()
+                for membership in memberships.data:
+                    user_id = membership['user_id']
+                    
+                    # Clean user's habits and logs
+                    habits = supabase.table('habits').select('id').eq('user_id', user_id).execute()
+                    for habit in habits.data:
+                        supabase.table('habit_logs').delete().eq('habit_id', habit['id']).execute()
+                    supabase.table('habits').delete().eq('user_id', user_id).execute()
+                
+                # Clean memberships
+                supabase.table('memberships').delete().eq('school_id', school_id).execute()
+                
+                # Clean class
+                supabase.table('classes').delete().eq('id', class_id).execute()
+            
+            # Clean school
+            supabase.table('schools').delete().eq('id', school_id).execute()
         
-        for user_id in demo_users:
-            supabase.table('habit_logs').delete().eq('user_id', user_id).execute()
-            supabase.table('habits').delete().eq('user_id', user_id).execute()
-            supabase.table('memberships').delete().eq('user_id', user_id).execute()
-        
-        # Clean classes and school
-        supabase.table('classes').delete().eq('id', 'demo-class-001').execute()
-        supabase.table('classes').delete().eq('id', 'demo-class-002').execute()
-        supabase.table('schools').delete().eq('id', 'demo-school-001').execute()
+        # Also clean by invite codes
+        supabase.table('classes').delete().eq('invite_code', 'DEMO-MATH-A').execute()
+        supabase.table('classes').delete().eq('invite_code', 'DEMO-SCI-B').execute()
         
     except Exception as e:
         print(f"⚠️  Cleanup warning (probably no existing data): {e}")
