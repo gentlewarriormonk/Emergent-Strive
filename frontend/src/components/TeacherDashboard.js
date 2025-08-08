@@ -4,6 +4,7 @@ import { Button } from './ui/button'
 import { EmptyState } from './ui/empty-state'
 import AnalyticsTile from './AnalyticsTile'
 import StreakBadge from './StreakBadge'
+import AdvancedAnalytics from './AdvancedAnalytics'
 import { useAuth } from './AuthProvider'
 import { 
   Users, 
@@ -13,7 +14,9 @@ import {
   GraduationCap,
   Target,
   Calendar,
-  BarChart3
+  BarChart3,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react'
 import axios from 'axios'
 
@@ -24,6 +27,7 @@ const TeacherDashboard = ({ context }) => {
   const [analytics, setAnalytics] = useState(null)
   const [loading, setLoading] = useState(true)
   const [exporting, setExporting] = useState(false)
+  const [showAdvanced, setShowAdvanced] = useState(false)
   const { getAccessToken } = useAuth()
 
   useEffect(() => {
@@ -101,7 +105,7 @@ const TeacherDashboard = ({ context }) => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Analytics Tiles */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <AnalyticsTile
@@ -130,6 +134,26 @@ const TeacherDashboard = ({ context }) => {
           icon={<Trophy className="h-4 w-4" />}
         />
       </div>
+
+      {/* Advanced Analytics Toggle */}
+      <div className="flex justify-center">
+        <Button
+          onClick={() => setShowAdvanced(!showAdvanced)}
+          variant="outline"
+          className="flex items-center gap-2"
+        >
+          <BarChart3 className="h-4 w-4" />
+          {showAdvanced ? 'Hide' : 'Show'} Advanced Analytics
+          {showAdvanced ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </Button>
+      </div>
+
+      {/* Advanced Analytics Section */}
+      {showAdvanced && (
+        <div className="border-t border-gray-700 pt-8">
+          <AdvancedAnalytics context={context} />
+        </div>
+      )}
 
       {/* Top Performers */}
       {analytics.top_3_streaks.length > 0 && (
