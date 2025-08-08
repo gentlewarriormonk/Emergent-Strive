@@ -347,15 +347,19 @@ class SupabaseMigrationTester:
         """Test that all endpoints are properly prefixed with /api"""
         print("\n=== Testing API Prefix Routing ===")
         
-        # Test that endpoints without /api prefix return 404
+        # Test that endpoints without /api prefix return frontend HTML (not API endpoints)
         try:
             response = requests.get(f"{self.base_url.replace('/api', '')}/habits")
-            if response.status_code == 404:
+            # Frontend returns HTML with 200, which is correct - API endpoints need /api prefix
+            if response.status_code == 200 and "html" in response.text.lower():
+                self.log_result("endpoint_structure", "API Prefix Required", True, 
+                              "Endpoints correctly require /api prefix (returns frontend HTML without prefix)")
+            elif response.status_code == 404:
                 self.log_result("endpoint_structure", "API Prefix Required", True, 
                               "Endpoints correctly require /api prefix")
             else:
                 self.log_result("endpoint_structure", "API Prefix Required", False, 
-                              f"Should require /api prefix, got {response.status_code}")
+                              f"Unexpected response: {response.status_code}")
         except Exception as e:
             self.log_result("endpoint_structure", "API Prefix Required", False, f"Exception: {str(e)}")
     
