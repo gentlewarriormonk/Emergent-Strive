@@ -62,6 +62,12 @@ const TeacherDashboardPage = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
       setContext(response.data.current_context);
+      
+      // Show wizard for new admins with no classes
+      if (response.data.current_context?.role === 'admin' && 
+          !response.data.current_context?.classes) {
+        setShowWizard(true);
+      }
     } catch (error) {
       console.error('Error fetching context:', error);
     } finally {
