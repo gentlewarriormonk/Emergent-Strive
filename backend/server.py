@@ -1016,6 +1016,76 @@ async def get_weekly_completion_analytics(
         logging.error(f"Error fetching weekly analytics: {e}")
         raise HTTPException(status_code=400, detail=str(e))
 
+@api_router.post("/auth/bootstrap")
+async def bootstrap_user_as_admin(
+    bootstrap_data: Dict[str, str],
+    authorization: str = Header(...),
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Bootstrap first-time user as admin with default school."""
+    try:
+        user_id = current_user['id']
+        email = current_user.get('email', bootstrap_data.get('email', 'unknown'))
+        
+        # Check if user already has memberships (idempotent check)
+        existing_memberships = await get_user_memberships(user_id, supabase_service.admin_client)
+        
+        if existing_memberships:
+            # User already has memberships, return existing context
+            return {
+                'message': 'User already bootstrapped',
+                'school_id': existing_memberships[0]['school_id'],
+                'role': existing_memberships[0]['role'],
+                'existing': True
+            }
+        
+        # Create default school name based on email domain or generic
+        email_domain = email.split('@')[-1] if '@' in email else 'strive'
+        school_name = f"{email_domain.split('.')[0].title()} School"
+        
+        # Check if we should use a default school name
+        if email_domain in ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'strive.app']:
+            school_name = "Strive Demo School"
+        
+        # Use service role to create school and membership (bypasses RLS)
+        school_result = supabase_service.admin_client.table('schools').insert({
+            'id': str(uuid.uuid4()),
+            'name': school_name,
+            'created_at': datetime.utcnow().isoformat()
+        }).execute()
+        
+        if not school_result.data:
+            raise HTTPException(status_code=400, detail="Failed to create school")
+        
+        school = school_result.data[0]
+        
+        # Create admin membership
+        membership_result = supabase_service.admin_client.table('memberships').insert({
+            'user_id': user_id,
+            'school_id': school['id'],
+            'class_id': None,  # Admin doesn't belong to specific class
+            'role': 'admin'
+        }).execute()
+        
+        if not membership_result.data:
+            raise HTTPException(status_code=400, detail="Failed to create admin membership")
+        
+        logging.info(f"Bootstrapped user {user_id} as admin for school {school['id']}")
+        
+        return {
+            'message': f'Successfully bootstrapped as admin for {school_name}',
+            'school_id': school['id'],
+            'school_name': school_name,
+            'role': 'admin',
+            'existing': False
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Error during user bootstrap: {e}")
+        raise HTTPException(status_code=400, detail=f"Bootstrap failed: {str(e)}")
+
 @api_router.post("/admin/recompute-streaks")
 async def manually_recompute_streaks(
     authorization: str = Header(...),
