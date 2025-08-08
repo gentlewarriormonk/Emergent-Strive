@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './com
 import { Button } from './components/ui/button';
 import { EmptyState } from './components/ui/empty-state';
 import StreakBadge from './components/StreakBadge';
-import TeacherDashboard from './components/TeacherDashboard';
+import AdminWizard from './components/AdminWizard';
 import { supabase } from './lib/supabase';
 import { 
   Users, 
