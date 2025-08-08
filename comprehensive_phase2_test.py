@@ -13,7 +13,7 @@ import os
 from supabase import create_client, Client
 
 # Configuration
-BACKEND_URL = "https://ab4df00f-3ade-4cc6-840e-ec03f13bb7d7.preview.emergentagent.com/api"
+BACKEND_URL = "https://1e76a8cc-52ee-4603-a7f1-a9f313f2c0a2.preview.emergentagent.com/api"
 SUPABASE_URL = "https://ehcrxbnhnyxpzuryxthz.supabase.co"
 SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVoY3J4Ym5obnl4cHp1cnl4dGh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2MjI5OTMsImV4cCI6MjA3MDE5ODk5M30.iwDxAhnyX6-Mpcgdy5iVH-CJ2QVCb0IORofg1r-GWB4"
 

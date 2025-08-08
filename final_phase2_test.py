@@ -11,7 +11,7 @@ from datetime import date, datetime, timedelta
 import time
 
 # Configuration
-BACKEND_URL = "https://ab4df00f-3ade-4cc6-840e-ec03f13bb7d7.preview.emergentagent.com/api"
+BACKEND_URL = "https://1e76a8cc-52ee-4603-a7f1-a9f313f2c0a2.preview.emergentagent.com/api"
 
 class FinalPhase2Tester:
     def __init__(self):

@@ -109,7 +109,7 @@ SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```env
 REACT_APP_SUPABASE_URL=https://ehcrxbnhnyxpzuryxthz.supabase.co
 REACT_APP_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-REACT_APP_BACKEND_URL=https://ab4df00f-3ade-4cc6-840e-ec03f13bb7d7.preview.emergentagent.com
+REACT_APP_BACKEND_URL=https://1e76a8cc-52ee-4603-a7f1-a9f313f2c0a2.preview.emergentagent.com
 ```
 
 ## Files Modified/Created
