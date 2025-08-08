@@ -102,7 +102,7 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Test the One Thing habit tracking app backend thoroughly including authentication flow, habit management, social features, data validation, and database operations"
+user_problem_statement: "Test the Supabase migration backend API endpoints. I've migrated from MongoDB to Supabase PostgreSQL with multi-school architecture. Please test backend architecture, FastAPI server, Supabase PostgreSQL with RLS, multi-tenant system, authentication via Supabase Auth JWT tokens, and key endpoints functionality."
 
 backend:
   - task: "User Registration (Students and Teachers)"
