@@ -528,12 +528,12 @@ class ClassBasedHabitTrackerTester:
         except Exception as e:
             self.log_result("habit_management", "Habit Creation", False, f"Exception: {str(e)}")
     
-    def test_streak_calculation(self):
-        """Test streak calculations are working"""
-        print("\n=== Testing Streak Calculation ===")
+    def test_enhanced_streak_calculations(self):
+        """Test enhanced streak calculations for gamification (Phase 2)"""
+        print("\n=== Testing Enhanced Streak Calculations (Phase 2) ===")
         
         if not self.test_habits:
-            self.log_result("habit_management", "Streak Calculation", False, "No test habits available")
+            self.log_result("habit_management", "Enhanced Streak Calculations", False, "No test habits available")
             return
         
         email = list(self.test_habits.keys())[0]
@@ -541,10 +541,24 @@ class ClassBasedHabitTrackerTester:
         token = self.test_tokens[email]
         headers = {"Authorization": f"Bearer {token}"}
         
-        # Wait a moment for stats to update
-        time.sleep(1)
+        # Create multiple habit logs to test streak calculation
+        today = date.today()
+        for i in range(3):  # Log for today and 2 previous days
+            log_date = today - timedelta(days=i)
+            log_data = {
+                "date": log_date.isoformat(),
+                "completed": True
+            }
+            
+            try:
+                requests.post(f"{self.base_url}/habits/{habit_id}/log", json=log_data, headers=headers)
+            except:
+                pass  # Continue even if some logs fail
         
-        # Check if streak is calculated correctly
+        # Wait for calculations to update
+        time.sleep(2)
+        
+        # Check enhanced streak calculations
         try:
             response = requests.get(f"{self.base_url}/habits", headers=headers)
             if response.status_code == 200:
@@ -552,15 +566,31 @@ class ClassBasedHabitTrackerTester:
                 target_habit = next((h for h in habits if h["habit"]["id"] == habit_id), None)
                 
                 if target_habit and "stats" in target_habit:
-                    current_streak = target_habit["stats"]["current_streak"]
-                    self.log_result("habit_management", "Streak Calculation", True, 
-                                  f"Streak calculated: {current_streak} days")
+                    stats = target_habit["stats"]
+                    required_stats = ["current_streak", "best_streak", "percent_complete"]
+                    
+                    if all(stat in stats for stat in required_stats):
+                        current_streak = stats["current_streak"]
+                        best_streak = stats["best_streak"]
+                        percent_complete = stats["percent_complete"]
+                        
+                        # Validate that streak calculations are reasonable
+                        if current_streak >= 0 and best_streak >= current_streak and 0 <= percent_complete <= 100:
+                            self.log_result("habit_management", "Enhanced Streak Calculations", True, 
+                                          f"Enhanced streaks: current={current_streak}, best={best_streak}, completion={percent_complete}%")
+                        else:
+                            self.log_result("habit_management", "Enhanced Streak Calculations", False, 
+                                          f"Invalid streak values: current={current_streak}, best={best_streak}, completion={percent_complete}%")
+                    else:
+                        self.log_result("habit_management", "Enhanced Streak Calculations", False, 
+                                      f"Missing required stats: {required_stats}")
                 else:
-                    self.log_result("habit_management", "Streak Calculation", False, "Could not find habit or stats")
+                    self.log_result("habit_management", "Enhanced Streak Calculations", False, "Could not find habit or stats")
             else:
-                self.log_result("habit_management", "Streak Calculation", False, f"HTTP {response.status_code}: {response.text}")
+                self.log_result("habit_management", "Enhanced Streak Calculations", False, f"HTTP {response.status_code}: {response.text}")
         except Exception as e:
-            self.log_result("habit_management", "Streak Calculation", False, f"Exception: {str(e)}")
+            self.log_result("habit_management", "Enhanced Streak Calculations", False, f"Exception: {str(e)}")
+    
     
     def test_data_validation(self):
         """Test edge cases and error handling"""
