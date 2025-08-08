@@ -1,0 +1,12 @@
+# Supabase Configuration for Streak Recomputation Edge Function
+
+[functions.recompute-streaks]
+# Cron schedule: Run daily at 02:00 EU time (01:00 UTC in summer, 02:00 UTC in winter)
+# Using 01:00 UTC to ensure it runs during EU nighttime regardless of DST
+verify_jwt = false  # Allow cron service to call without JWT
+
+[cron.recompute-streaks]
+# Daily at 01:00 UTC (02:00 EU time during standard time, 03:00 during DST)
+schedule = "0 1 * * *"
+# Alternatively, for more precision with EU timezone:
+# schedule = "0 2 * * *"  # 02:00 UTC, which is typically 03:00 or 04:00 EU time
