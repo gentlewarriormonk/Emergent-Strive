@@ -488,7 +488,10 @@ metadata:
   run_ui: false
 
 test_plan:
-  current_focus: []
+  current_focus:
+    - "Phase 3 Daily Analytics Endpoint"
+    - "Phase 3 Weekly Analytics Endpoint" 
+    - "Phase 3 Admin Streak Recomputation"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
