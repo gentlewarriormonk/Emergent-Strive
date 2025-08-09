@@ -1,0 +1,10 @@
+{
+  "name": "strive-monorepo",
+  "private": true,
+  "scripts": {
+    "e2e:install": "npx playwright install --with-deps",
+    "e2e:run": "npx playwright test"
+  }
+}
+
+
