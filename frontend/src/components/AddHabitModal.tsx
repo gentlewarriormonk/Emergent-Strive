@@ -16,9 +16,8 @@ import {
   useToast,
 } from '@chakra-ui/react';
 import axios from 'axios';
-
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+import { apiBaseUrl } from '@/config';
+const API = `${apiBaseUrl}/api`;
 
 interface AddHabitModalProps {
   isOpen: boolean;

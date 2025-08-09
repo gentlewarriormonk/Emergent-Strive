@@ -21,7 +21,10 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
 ROOT_DIR = Path(__file__).parent
-load_dotenv(ROOT_DIR / '.env')
+load_dotenv(ROOT_DIR / '.env')  # Loads backend-local env if present
+
+# Environment
+ENV = os.getenv("ENV", "development").lower()
 
 # MongoDB connection
 mongo_url = os.environ['MONGO_URL']
@@ -31,7 +34,12 @@ db = client[os.environ['DB_NAME']]
 # Security
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
-SECRET_KEY = "your-secret-key-change-in-production"
+
+# In production, SECRET_KEY must be provided via env. In non-prod, provide a safe dev fallback.
+SECRET_KEY = os.getenv("SECRET_KEY") if ENV == "production" else os.getenv("SECRET_KEY", "dev-insecure-secret")
+if ENV == "production" and not SECRET_KEY:
+    raise RuntimeError("SECRET_KEY must be set in production environment")
+
 ALGORITHM = "HS256"
 
 # Create the main app without a prefix

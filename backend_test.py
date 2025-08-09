@@ -5,13 +5,15 @@ Tests authentication, class management, habit tracking, analytics, and authoriza
 """
 
 import requests
+import os
 import json
 import uuid
 from datetime import date, datetime, timedelta
 import time
 
-# Get backend URL from frontend env
-BACKEND_URL = "https://eb2ef1f6-3972-46c8-a2c1-ba9cd83a94cf.preview.emergentagent.com/api"
+# Backend base URL (env-driven)
+# Use BACKEND_URL env var; default to local dev if not set
+BACKEND_URL = os.environ.get("BACKEND_URL", "http://localhost:8000/api")
 
 class ClassBasedHabitTrackerTester:
     def __init__(self):

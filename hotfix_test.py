@@ -9,13 +9,14 @@ Tests the specific hotfix changes to POST /habits endpoint:
 """
 
 import requests
+import os
 import json
 import uuid
 from datetime import date, datetime, timedelta
 import time
 
-# Get backend URL from frontend env
-BACKEND_URL = "https://eb2ef1f6-3972-46c8-a2c1-ba9cd83a94cf.preview.emergentagent.com/api"
+# Backend base URL (env-driven)
+BACKEND_URL = os.environ.get("BACKEND_URL", "http://localhost:8000/api")
 
 class HotfixTester:
     def __init__(self):
