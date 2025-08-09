@@ -1190,10 +1190,20 @@ async def export_class_csv(class_id: str, range_days: int = 30, current_user: Us
 # Include the router in the main app
 app.include_router(api_router)
 
+# CORS configuration
+cors_origin_env = os.getenv("CORS_ORIGIN")
+if ENV == "production":
+    # In production, prefer explicit CORS_ORIGIN. If missing, restrict to empty list (no origins).
+    # TODO: Provide FRONTEND_URL env in production to avoid blocking
+    allowed_origins = [cors_origin_env] if cors_origin_env else []
+else:
+    # In non-prod, allow wildcard unless explicitly provided
+    allowed_origins = [cors_origin_env] if cors_origin_env else ["*"]
+
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
