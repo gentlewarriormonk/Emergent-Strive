@@ -21,7 +21,10 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
 ROOT_DIR = Path(__file__).parent
-load_dotenv(ROOT_DIR / '.env')
+load_dotenv(ROOT_DIR / '.env')  # Loads backend-local env if present
+
+# Environment
+ENV = os.getenv("ENV", "development").lower()
 
 # MongoDB connection
 mongo_url = os.environ['MONGO_URL']
@@ -31,7 +34,12 @@ db = client[os.environ['DB_NAME']]
 # Security
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
-SECRET_KEY = "your-secret-key-change-in-production"
+
+# In production, SECRET_KEY must be provided via env. In non-prod, provide a safe dev fallback.
+SECRET_KEY = os.getenv("SECRET_KEY") if ENV == "production" else os.getenv("SECRET_KEY", "dev-insecure-secret")
+if ENV == "production" and not SECRET_KEY:
+    raise RuntimeError("SECRET_KEY must be set in production environment")
+
 ALGORITHM = "HS256"
 
 # Create the main app without a prefix
@@ -820,6 +828,10 @@ async def join_crew(crew_request: CrewJoinRequest, current_user: User = Depends(
     crew = await db.crews.find_one({"id": crew_request.crew_id})
     if not crew:
         raise HTTPException(status_code=404, detail="Crew not found")
+
+    # Enforce class scoping: user must be in same class as crew
+    if crew.get("class_id") != current_user.class_id:
+        raise HTTPException(status_code=403, detail="You can only join crews from your class")
     
     member_count = await db.crew_members.count_documents({"crew_id": crew_request.crew_id})
     if member_count >= 4:
@@ -1053,6 +1065,10 @@ async def complete_quest(quest_id: str, current_user: User = Depends(get_current
     quest = await db.quests.find_one({"id": quest_id})
     if not quest:
         raise HTTPException(status_code=404, detail="Quest not found")
+
+    # Enforce class scoping: user must be in same class as quest
+    if quest.get("class_id") != current_user.class_id:
+        raise HTTPException(status_code=403, detail="You can only complete quests from your class")
     
     today = date.today()
     if today < date.fromisoformat(quest["start_date"]) or today > date.fromisoformat(quest["end_date"]):
@@ -1182,10 +1198,20 @@ async def export_class_csv(class_id: str, range_days: int = 30, current_user: Us
 # Include the router in the main app
 app.include_router(api_router)
 
+# CORS configuration
+cors_origin_env = os.getenv("CORS_ORIGIN")
+if ENV == "production":
+    # In production, prefer explicit CORS_ORIGIN. If missing, restrict to empty list (no origins).
+    # TODO: Provide FRONTEND_URL env in production to avoid blocking
+    allowed_origins = [cors_origin_env] if cors_origin_env else []
+else:
+    # In non-prod, allow wildcard unless explicitly provided
+    allowed_origins = [cors_origin_env] if cors_origin_env else ["*"]
+
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )

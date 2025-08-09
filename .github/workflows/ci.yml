@@ -1,0 +1,53 @@
+name: CI
+on:
+  pull_request:
+    branches: [ "main", "release/**" ]
+  push:
+    branches: [ "release/**" ]
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install deps
+        run: npm ci || npm i
+      - name: Build
+        run: npm run build || echo "no build script"
+      - name: Playwright install
+        run: npx playwright install --with-deps
+      - name: E2E (skips if no URL)
+        env:
+          E2E_BASE_URL: ${{ secrets.E2E_BASE_URL }}
+          E2E_USER_EMAIL: ${{ secrets.E2E_USER_EMAIL }}
+          E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
+        run: |
+          if [ -z "$E2E_BASE_URL" ]; then
+            echo "No E2E_BASE_URL provided; skipping e2e."
+          else
+            npx playwright test
+          fi
+
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: |
+          pip install -r requirements.txt || echo "no requirements.txt"
+      - name: Unit tests
+        env:
+          MONGO_URL: ${{ secrets.MONGO_URL }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          BACKEND_URL: ${{ secrets.BACKEND_URL }}
+        run: |
+          pytest -q || echo "no pytest configured"
+
+

@@ -1,9 +1,9 @@
 import React, { useState, useEffect, createContext, useContext } from "react";
 import "./App.css";
 import axios from "axios";
+import { apiBaseUrl } from "./config";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+const API = `${apiBaseUrl}/api`;
 
 // Auth Context
 const AuthContext = createContext();
@@ -67,7 +67,7 @@ const AuthForm = () => {
       const response = await axios.post(`${API}${endpoint}`, payload);
       login(response.data.user, response.data.token);
     } catch (error) {
-      alert(error.response?.data?.detail || 'Authentication failed');
+      setToast({ message: error.response?.data?.detail || 'Authentication failed', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -282,7 +282,7 @@ const AddHabitModal = ({ isOpen, onClose, onHabitAdded }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.name.trim()) {
-      alert('Please enter a habit name');
+      setToast({ message: 'Please enter a habit name', type: 'error' });
       return;
     }
 
@@ -298,7 +298,7 @@ const AddHabitModal = ({ isOpen, onClose, onHabitAdded }) => {
         custom_days: []
       });
     } catch (error) {
-      alert('Failed to create habit');
+      setToast({ message: 'Failed to create habit', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -421,7 +421,7 @@ const CustomRepeatModal = ({ isOpen, onClose, onSave, initialDays = [] }) => {
 
   const handleSave = () => {
     if (selectedDays.length === 0) {
-      alert('Please select at least one day');
+      setToast({ message: 'Please select at least one day', type: 'error' });
       return;
     }
     onSave(selectedDays);
@@ -490,12 +490,12 @@ const CreateQuestModal = ({ isOpen, onClose, onQuestCreated }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.title.trim() || !formData.description.trim()) {
-      alert('Please fill in all fields');
+      setToast({ message: 'Please fill in all fields', type: 'error' });
       return;
     }
 
     if (new Date(formData.end_date) <= new Date(formData.start_date)) {
-      alert('End date must be after start date');
+      setToast({ message: 'End date must be after start date', type: 'error' });
       return;
     }
 
@@ -512,7 +512,7 @@ const CreateQuestModal = ({ isOpen, onClose, onQuestCreated }) => {
         xp_reward: 50,
       });
     } catch (error) {
-      alert(error.response?.data?.detail || 'Failed to create quest');
+      setToast({ message: error.response?.data?.detail || 'Failed to create quest', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -753,10 +753,10 @@ const Dashboard = () => {
       await axios.post(`${API}/quests/${questId}/complete`);
       fetchQuests();
       fetchUserStats(); // Refresh XP after quest completion
-      alert('Quest completed! XP awarded!');
+      showToast('Quest completed! XP awarded!', 'success');
     } catch (error) {
       console.error('Error completing quest:', error);
-      alert(error.response?.data?.detail || 'Failed to complete quest');
+      showToast(error.response?.data?.detail || 'Failed to complete quest', 'error');
     }
   };
 
@@ -778,7 +778,7 @@ const Dashboard = () => {
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Error exporting CSV:', error);
-      alert('Failed to export CSV');
+      showToast('Failed to export CSV', 'error');
     }
   };
 
@@ -1398,7 +1398,7 @@ const CreateCrewModal = ({ isOpen, onClose, onCrewCreated }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!crewName.trim()) {
-      alert('Please enter a crew name');
+      showToast('Please enter a crew name', 'error');
       return;
     }
 
@@ -1409,7 +1409,7 @@ const CreateCrewModal = ({ isOpen, onClose, onCrewCreated }) => {
       onClose();
       setCrewName('');
     } catch (error) {
-      alert(error.response?.data?.detail || 'Failed to create crew');
+      showToast(error.response?.data?.detail || 'Failed to create crew', 'error');
     } finally {
       setLoading(false);
     }
