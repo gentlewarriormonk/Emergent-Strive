@@ -828,6 +828,10 @@ async def join_crew(crew_request: CrewJoinRequest, current_user: User = Depends(
     crew = await db.crews.find_one({"id": crew_request.crew_id})
     if not crew:
         raise HTTPException(status_code=404, detail="Crew not found")
+
+    # Enforce class scoping: user must be in same class as crew
+    if crew.get("class_id") != current_user.class_id:
+        raise HTTPException(status_code=403, detail="You can only join crews from your class")
     
     member_count = await db.crew_members.count_documents({"crew_id": crew_request.crew_id})
     if member_count >= 4:
@@ -1061,6 +1065,10 @@ async def complete_quest(quest_id: str, current_user: User = Depends(get_current
     quest = await db.quests.find_one({"id": quest_id})
     if not quest:
         raise HTTPException(status_code=404, detail="Quest not found")
+
+    # Enforce class scoping: user must be in same class as quest
+    if quest.get("class_id") != current_user.class_id:
+        raise HTTPException(status_code=403, detail="You can only complete quests from your class")
     
     today = date.today()
     if today < date.fromisoformat(quest["start_date"]) or today > date.fromisoformat(quest["end_date"]):
